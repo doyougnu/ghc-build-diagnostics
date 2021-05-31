@@ -4,7 +4,10 @@
 
    1. https://gitlab.haskell.org/ghc/ghc/-/issues/18541
    2. https://gitlab.haskell.org/ghc/ghc/-/issues/18535
-   3. [[https://gitlab.haskell.org/bgamari/bottom-up-analysis/-/tree/master][Ben Gamari allocation center benchmarking script]]
+   3. [[https://gitlab.haskell.org/bgamari/bottom-up-analysis/-/tree/master][Ben Gamari's allocation center benchmarking script]]
+
+** Downloading Hackage
+   [[http://neilmitchell.blogspot.com/2018/11/downloading-all-of-hackage.html][neil mitchell's blog post on doing this will work]]
 
 * Input
 
