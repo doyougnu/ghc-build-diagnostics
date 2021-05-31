@@ -1,0 +1,46 @@
+* References
+** These issues from gitlab are directly relevant
+   if you even need a refresher read them through
+
+   1. https://gitlab.haskell.org/ghc/ghc/-/issues/18541
+   2. https://gitlab.haskell.org/ghc/ghc/-/issues/18535
+   3. [[https://gitlab.haskell.org/bgamari/bottom-up-analysis/-/tree/master][Ben Gamari allocation center benchmarking script]]
+
+* Input
+
+** A Hackage project
+
+* Output
+
+** Build times by compiler phase
+
+** Allocations/Entries of particular functions
+
+** Should be a csv for R
+
+* Want
+
+** Automatic pull of packages from hackage
+
+** Automatic diagnostics
+
+*** By commits to GHC HEAD
+
+*** or by GHC release
+
+* Project Todos
+
+** DONE Initial setup
+   CLOSED: [2021-05-30 Sun 17:31]
+
+** TODO Nixify
+
+** TODO Read in hackage package
+
+** TODO Call compiler packages on package
+
+** TODO Project produces useful output data
+
+** TODO Project produces alloc/entries output data
+
+** TODO Project runs autonomously
