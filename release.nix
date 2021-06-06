@@ -43,7 +43,7 @@ in
                       pkgs.haskellPackages.profiteur
                       pkgs.zlib
                       pkgs.cabal-install
-                      # unstable.julia
+                      pkgs.wget
                     ];
     };
   }

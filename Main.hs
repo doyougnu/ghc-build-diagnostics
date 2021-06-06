@@ -1,4 +1,3 @@
-{-# LANGUAGE ViewPatterns #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module    : Main
@@ -11,6 +10,7 @@
 -----------------------------------------------------------------------------
 
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module Main where
 
@@ -22,7 +22,7 @@ import qualified Shelly              as Sh
 import           Control.Applicative ((<|>))
 import           Data.Semigroup      ((<>))
 import           Control.Arrow       (second)
-
+import           Data.List.Extra     (groupOn)
 
 
 data Mode = Packages Package -- ^ Analyze a set of packages, read from stdin
@@ -60,7 +60,7 @@ main = do
                     retrievePackageList workingDir packageList
     Clean        -> between "Cleaning..." "done" .
                     Sh.shelly $ Sh.rm_rf (T.unpack workingDir)
-    BuildCache   -> between "Building cache" "done" retrieveAllPackages
+    BuildCache   -> between "Building cache" "done" retrieveRecentPackages
     Packages ps  -> doPackages ps
 
 
@@ -102,28 +102,32 @@ toUrl (p,v) = hackage <> T.pack (p Sh.</> p) <> dash <> T.pack (v Sh.<.> tarGz)
 -- | get a list of packages from cabal
 retrievePackageList :: T.Text -> T.Text -> IO ()
 retrievePackageList dir listName =
-  do ps <- Sh.shelly $
-       do packages <- Sh.silently $ Sh.run "cabal" ["list", "--simple"]
-          return . fmap (toUrl . second T.tail . T.breakOn " ") . T.lines $ packages
+  do ps <- Sh.shelly   $
+           Sh.silently $
+           T.lines <$> Sh.run "cabal" ["list", "--simple"]
 
      -- make the working directory
      Sh.shelly $ Sh.mkdir_p (T.unpack dir)
      TIO.writeFile (dir Sh.</> listName) (T.unlines ps)
 
 
--- | Download all packages in the package list from hackage
-retrieveAllPackages :: IO ()
-retrieveAllPackages = do ps <- TIO.readFile (workingDir Sh.</> packageList)
-                         let wd       = T.unpack workingDir
-                             pd       = T.unpack packageDir
-                             arg      = "--input-file=" :: T.Text
-                             get file = Sh.run_ "wget" $
-                                        pure . T.pack $ arg Sh.</> file
-                         Sh.shelly $
-                           do Sh.rm_rf (wd Sh.</> pd) >> Sh.mkdir_p (wd Sh.</> pd)
-                              root <- Sh.pwd
-                              get (root Sh.</> wd Sh.</> packageList)
+-- | Download all packages in the package list from hackage by some predicate
+retrieveAllPackagesBy :: ([(Package, Version)] -> [(Package, Version)]) -> IO ()
+retrieveAllPackagesBy by =
+  do ps <- by . fmap (second T.tail . T.breakOn " ") . T.lines <$>
+           TIO.readFile (workingDir Sh.</> packageList)
+     let wd  = T.unpack workingDir
+         pd  = T.unpack packageDir
+         get out = Sh.setStdin (T.unlines . fmap toUrl $ ps) >>
+                   (Sh.run_ "xargs" $
+                   fmap T.pack ["wget", "--directory-prefix=" <> out])
+     Sh.shelly $
+       do Sh.rm_rf (wd Sh.</> pd) >> Sh.mkdir_p (wd Sh.</> pd)
+          root <- Sh.pwd
+          get  (root Sh.</> wd Sh.</> pd)
 
+retrieveRecentPackages :: IO ()
+retrieveRecentPackages = retrieveAllPackagesBy (fmap last . groupOn fst)
 
 doPackages :: T.Text -> IO ()
 doPackages (T.lines -> ps) = undefined
