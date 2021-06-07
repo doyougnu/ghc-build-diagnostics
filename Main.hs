@@ -25,11 +25,9 @@ import GHC.Paths ( libdir )
 -- Core Types
 import Var
 import Name
--- import Kind
 import Avail
 import IdInfo
 import Module
--- import TypeRep
 import Unique
 import OccName
 import InstEnv
@@ -40,14 +38,14 @@ import qualified Stream
 import qualified CoreSyn as Syn
 
 -- Core Passes
-import CorePrep (corePrepPgm)
-import CoreToStg (coreToStg)
-import CmmInfo (cmmToRawCmm )
-import CmmLint (cmmLint)
-import CmmPipeline (cmmPipeline)
+import CorePrep           (corePrepPgm)
+import CoreToStg          (coreToStg)
+import CmmInfo            (cmmToRawCmm )
+import CmmLint            (cmmLint)
+import CmmPipeline        (cmmPipeline)
 import CmmBuildInfoTables (emptySRT)
-import AsmCodeGen ( nativeCodeGen )
-import UniqSupply ( mkSplitUniqSupply, initUs_ )
+import AsmCodeGen         ( nativeCodeGen )
+import UniqSupply         ( mkSplitUniqSupply, initUs_ )
 
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
