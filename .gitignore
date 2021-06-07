@@ -24,3 +24,10 @@ cabal.project.local~
 
 TAGS
 result
+
+# emacs files
+.dir-locals.el
+
+# project specific
+.ghc-diagnostics/
+newdist/

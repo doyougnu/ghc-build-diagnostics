@@ -14,13 +14,48 @@
 
 module Main where
 
+-- Compiler
+import GHC
+import DynFlags
+import HscMain
+import HscTypes
+import Outputable
+import GHC.Paths ( libdir )
+
+-- Core Types
+import Var
+import Name
+-- import Kind
+import Avail
+import IdInfo
+import Module
+-- import TypeRep
+import Unique
+import OccName
+import InstEnv
+import NameSet
+import RdrName
+import FamInstEnv
+import qualified Stream
+import qualified CoreSyn as Syn
+
+-- Core Passes
+import CorePrep (corePrepPgm)
+import CoreToStg (coreToStg)
+import CmmInfo (cmmToRawCmm )
+import CmmLint (cmmLint)
+import CmmPipeline (cmmPipeline)
+import CmmBuildInfoTables (emptySRT)
+import AsmCodeGen ( nativeCodeGen )
+import UniqSupply ( mkSplitUniqSupply, initUs_ )
+
 import qualified Data.Text           as T
 import qualified Data.Text.IO        as TIO
 import qualified Options.Applicative as O
 import qualified Shelly              as Sh
+import qualified Data.Semigroup      as Semi ((<>))
 
 import           Control.Applicative ((<|>))
-import           Data.Semigroup      ((<>))
 import           Control.Arrow       (second)
 import           Data.List.Extra     (groupOn)
 
@@ -69,30 +104,31 @@ parseInput :: O.Parser Mode
 parseInput = packageInput <|> refresh <|> clean <|> build
   where packageInput = Packages <$>
           O.option O.auto ( O.long    "package"
-                            <> O.short   'p'
-                            <> O.metavar "PACKAGE"
-                            <> O.help    "package name"
+                            Semi.<> O.short   'p'
+                            Semi.<> O.metavar "PACKAGE"
+                            Semi.<> O.help    "package name"
                           )
 
         refresh = O.flag' RefreshPList ( O.long "update"
-                                         <> O.short 'u'
-                                         <> O.help "Update the list of cabal packages"
+                                         Semi.<> O.short 'u'
+                                         Semi.<> O.help "Update the list of cabal packages"
                                        )
 
         clean   = O.flag' Clean (  O.long "clean"
-                                <> O.short 'c'
-                                <> O.help "clean up the working directory"
+                                Semi.<> O.short 'c'
+                                Semi.<> O.help "clean up the working directory"
                                 )
 
         build   = O.flag' BuildCache (    O.long "build"
-                                       <> O.short 'b'
-                                       <> O.help "rebuild the entire package cache"
+                                       Semi.<> O.short 'b'
+                                       Semi.<> O.help "rebuild the entire package cache"
                                      )
 
 
 -- | Convert a package and version to a URL
 toUrl :: (Package, Version) -> URL
-toUrl (p,v) = hackage <> T.pack (p Sh.</> p) <> dash <> T.pack (v Sh.<.> tarGz)
+toUrl (p,v) = hackage Semi.<> T.pack (p Sh.</> p)
+              Semi.<> dash Semi.<> T.pack (v Sh.<.> tarGz)
   where
     dash    = "-" :: T.Text
     tarGz   = T.pack $! ("tar" :: T.Text) Sh.<.> "gz"
@@ -120,7 +156,7 @@ retrieveAllPackagesBy by =
          pd  = T.unpack packageDir
          get out = Sh.setStdin (T.unlines . fmap toUrl $ ps) >>
                    (Sh.run_ "xargs" $
-                   fmap T.pack ["wget", "--directory-prefix=" <> out])
+                   fmap T.pack ["wget", "--directory-prefix=" Semi.<> out])
      Sh.shelly $
        do Sh.rm_rf (wd Sh.</> pd) >> Sh.mkdir_p (wd Sh.</> pd)
           root <- Sh.pwd
