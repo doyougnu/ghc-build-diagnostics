@@ -19,8 +19,11 @@ extra-source-files:  CHANGELOG.md
 
 executable ghc-build-diagnostics
   main-is:             Main.hs
-  -- other-modules:
-  -- other-extensions:
+  hs-source-dirs:      Diagnostics
+  other-modules:       GHC.Types
+                     , GHC.Utils
+  exposed-modules:     GHC.Types
+                     , GHC.Utils
   build-depends:       base >=4.14 && <4.15
                      , optparse-applicative
                      , text
@@ -28,5 +31,4 @@ executable ghc-build-diagnostics
                      , extra
                      , ghc
                      , ghc-paths
-  -- hs-source-dirs:
   default-language:    Haskell2010
