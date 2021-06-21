@@ -13,13 +13,11 @@
 {-# OPTIONS_GHC -Wall -Werror     #-}
 {-# LANGUAGE FlexibleInstances    #-}
 {-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE TypeSynonymInstances #-}
 {-# LANGUAGE ViewPatterns         #-}
 
 module GHC.Utils where
 
 import qualified Data.Text as T
--- import qualified Data.Text.IO        as TIO
 import qualified Shelly    as Sh
 
 
