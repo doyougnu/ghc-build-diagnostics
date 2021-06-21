@@ -20,6 +20,7 @@ module GHC.Utils where
 import qualified Data.Text as T
 import qualified Shelly    as Sh
 
+import System.FilePath (takeBaseName)
 
 import           GHC.Types
 
@@ -41,10 +42,13 @@ toUrl (p,v) = hackage <> T.pack (p Sh.</> p)
     dash    = "-" :: T.Text
     hackage = "http://hackage.haskell.org/package/"
 
-
-expand :: CompressedPackage -> PackageDirectory -> Sh.Sh ()
-expand (unCompressedPackage -> package) (T.pack . unPackageDirectory -> target) =
-  Sh.run_ "tar" ["-xvf", package, "-C", target]
+-- | decompress a package to a package directory
+expand :: CompressedPackage -> ProjectCache -> Sh.Sh ()
+expand (unCompressedPackage -> package) target =
+  do Sh.canonicalize (toPath package) >>= Sh.echo . ("Expanding: " <>) . T.pack
+     Sh.canonicalize (toPath target)  >>= Sh.echo . ("To: "        <>) . T.pack
+     Sh.run_ "tar" ["-xvf", package, "-C", target]
+     Sh.echo "Done"
 
 
 cat :: T.Text -> Sh.Sh T.Text
@@ -57,6 +61,14 @@ toCompressedPackage (T.unpack -> p) = CompressedPackage . T.pack $
 
 toPackageDirectory :: Package -> PackageDirectory
 toPackageDirectory p = PackageDirectory $! workingDir Sh.</> projectCache Sh.</> p
+
+compressedToPackageDir :: CompressedPackage -> PackageDirectory
+compressedToPackageDir = toPackageDirectory         .
+                         T.pack                     .
+                         takeBaseName               .
+                         toPath                     .
+                         T.dropEnd (T.length tarGz) .
+                         unCompressedPackage
 
 
 wget :: [(Package, Version)] -> T.Text -> Sh.Sh ()

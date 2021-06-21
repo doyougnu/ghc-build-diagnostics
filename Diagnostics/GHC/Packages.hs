@@ -26,7 +26,6 @@ module GHC.Packages
 import qualified Data.Text       as T
 import qualified Shelly          as Sh
 
-
 import           Control.Arrow   (second)
 import           Data.List.Extra (groupOn)
 
@@ -37,8 +36,7 @@ import qualified GHC.Utils       as U
 -- | get a list of packages from cabal
 retrievePackageList :: T.Text -> Sh.Sh ()
 retrievePackageList (T.unpack -> targetFile) =
-  do ps <- Sh.silently $
-           T.lines <$> Sh.run "cabal" ["list", "--simple"]
+  do ps <- Sh.silently $ T.lines <$> Sh.run "cabal" ["list", "--simple"]
      Sh.writefile targetFile (T.unlines ps)
 
 
@@ -62,16 +60,15 @@ retrieveRecentPackages = Sh.whenM (not <$> U.exists packageList)
 
 
 -- | uncompress a package downloaded from hackage
-unzipPackage :: Package -> Sh.Sh ()
-unzipPackage p = do Sh.mkdir_p (toPath target)
-                    Sh.whenM (not <$> U.exists target) (U.expand package target)
-  where package = U.toCompressedPackage p
-        target  = U.toPackageDirectory  p
+unzipPackage :: CompressedPackage -> Sh.Sh ()
+unzipPackage package =
+  do Sh.whenM (not <$> U.exists pCache) $
+       Sh.echo "Initializing Project Cache" >>
+        Sh.mkdir_p (toPath pCache)
+     U.expand package pCache
+
+  where pCache = toText $ workingDir Sh.</> projectCache
 
 
 findPackageProject :: Package -> Sh.Sh ()
 findPackageProject p = Sh.cd $ workingDir Sh.</> tarCache Sh.</> p
-
-
-doPackages :: PackageSet -> Sh.Sh ()
-doPackages (unPackageSet -> ps) = unzipPackage (head ps)

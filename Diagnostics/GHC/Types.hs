@@ -9,8 +9,10 @@
 -- Types
 -----------------------------------------------------------------------------
 
-{-# OPTIONS_GHC -Wall -Werror  #-}
-{-# LANGUAGE OverloadedStrings #-}
+{-# OPTIONS_GHC -Wall -Werror   #-}
+{-# LANGUAGE DerivingStrategies #-}
+{-# LANGUAGE FlexibleInstances  #-}
+{-# LANGUAGE OverloadedStrings  #-}
 
 module GHC.Types
   ( Package
@@ -20,6 +22,7 @@ module GHC.Types
   , PackageSet(..)
   , CompressedPackage(..)
   , PackageDirectory(..)
+  , ProjectCache
   , ToText(..)
   , ToPath(..)
   , workingDir
@@ -29,33 +32,36 @@ module GHC.Types
   , tarGz
   ) where
 
-import qualified Data.Text           as T
-import qualified Shelly              as Sh
+import qualified Data.Text as T
+import qualified Shelly    as Sh
 
 -- | Type synonyms for more descriptive types
-type Package    = T.Text
-type PackageDir = T.Text
-type Version    = T.Text
-type URL        = T.Text
+type Package      = T.Text
+type PackageDir   = T.Text
+type ProjectCache = T.Text
+type Version      = T.Text
+type URL          = T.Text
 
 -- | a bunch of packages
 newtype PackageSet = PackageSet { unPackageSet :: [Package] }
 
 -- | The compressed package from hackage
 newtype CompressedPackage = CompressedPackage { unCompressedPackage :: Package }
-                          deriving Show
+                          deriving stock Show
 
--- | The decompressed package directory
+-- | The decompressed project directory for a given package from hackage. These
+-- should always occur in the ProjectCache.
 newtype PackageDirectory = PackageDirectory  { unPackageDirectory :: FilePath }
-                         deriving Show
+                         deriving stock Show
 
 -- | Type Class to project a type to text
-class ToText a where toText :: a -> T.Text
+class    ToText a where toText :: a -> T.Text
 instance ToText CompressedPackage where toText = unCompressedPackage
 instance ToText PackageDirectory  where toText = T.pack . unPackageDirectory
+instance ToText FilePath          where toText = Sh.toTextIgnore
 
 -- | Type Class to project a type to a file path
-class ToPath a         where toPath :: a -> FilePath
+class    ToPath a      where toPath :: a -> FilePath
 instance ToPath T.Text where toPath = Sh.fromText
 instance ToPath CompressedPackage where toPath = toPath . toText
 instance ToPath PackageDirectory  where toPath = toPath . toText

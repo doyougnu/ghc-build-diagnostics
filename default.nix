@@ -1,5 +1,5 @@
 { mkDerivation, base, optparse-applicative, shelly, stdenv,
-  text, extra, ghc, ghc-paths, wget, gnutar }:
+  text, filepath, extra, ghc, ghc-paths, wget, gnutar }:
 mkDerivation {
   pname = "ghc-build-diagnostics";
   version = "0.1.0.0";
@@ -8,7 +8,7 @@ mkDerivation {
   isExecutable = true;
   buildDepends = [ wget gnutar ];
   executableHaskellDepends = [
-    base optparse-applicative shelly text extra ghc ghc-paths
+    base optparse-applicative shelly text extra ghc ghc-paths filepath
   ];
   license = "unknown";
   hydraPlatforms = stdenv.lib.platforms.none;

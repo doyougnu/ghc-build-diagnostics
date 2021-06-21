@@ -23,14 +23,17 @@ executable ghc-build-diagnostics
   other-modules:       GHC.Types
                      , GHC.Utils
                      , GHC.Packages
+                     , GHC.Diagnostics
   exposed-modules:     GHC.Types
                      , GHC.Utils
                      , GHC.Packages
+                     , GHC.Diagnostics
   build-depends:       base >=4.14 && <4.15
                      , optparse-applicative
                      , text
                      , shelly
                      , extra
+                     , filepath
                      , ghc
                      , ghc-paths
   default-language:    Haskell2010

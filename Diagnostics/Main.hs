@@ -11,57 +11,23 @@
 
 {-# OPTIONS_GHC -Wall -Werror  #-}
 {-# LANGUAGE OverloadedStrings #-}
-{-# LANGUAGE ViewPatterns      #-}
 
 module Main where
 
--- Compiler
--- import GHC
--- import DynFlags
--- import HscMain
--- import HscTypes
--- import Outputable
--- import GHC.Paths ( libdir )
-
--- Core Types
--- import Var
--- import Name
--- import Avail
--- import IdInfo
--- import Module
--- import Unique
--- import OccName
--- import InstEnv
--- import NameSet
--- import RdrName
--- import FamInstEnv
--- import qualified Stream
--- import qualified CoreSyn as Syn
-
--- Core Passes
--- import CorePrep           (corePrepPgm)
--- import CoreToStg          (coreToStg)
--- import CmmInfo            (cmmToRawCmm )
--- import CmmLint            (cmmLint)
--- import CmmPipeline        (cmmPipeline)
--- import CmmBuildInfoTables (emptySRT)
--- import AsmCodeGen         ( nativeCodeGen )
--- import UniqSupply         ( mkSplitUniqSupply, initUs_ )
-
+import qualified Data.Semigroup      as Semi ((<>))
 import qualified Data.Text           as T
 import qualified Options.Applicative as O
 import qualified Shelly              as Sh
-import qualified Data.Semigroup      as Semi ((<>))
 
-import           Control.Applicative     ((<|>),some)
-import           Control.Monad           (void)
-import           Control.Arrow           (second)
-import           Data.List.Extra         (groupOn)
+import           Control.Applicative (some, (<|>))
+import           Control.Monad       (void)
 
-import GHC.Types
-import qualified GHC.Utils as U
-import qualified GHC.Packages as P
+import qualified GHC.Packages        as P
+import qualified GHC.Diagnostics     as D
+import qualified GHC.Utils           as U
+import           GHC.Types
 
+-- | The mode the command line application is run in
 data Mode = Packages PackageSet -- ^ Analyze a set of packages, read from stdin
           | RefreshPList        -- ^ Refresh the package list
           | BuildCache          -- ^ Download all the packages from hackage
@@ -77,12 +43,12 @@ main = do
   Sh.shelly $
     case mode of
       RefreshPList -> between "Refreshing package list" "all done" $
-                      retrievePackageList packageList
+                      P.retrievePackageList packageList
       Clean        -> between "Cleaning..." "done" .
                       Sh.shelly $ Sh.rm_rf (T.unpack workingDir)
       BuildCache   -> U.createWorkingDir >>
-                      between "Building cache" "done" retrieveRecentPackages
-      Packages ps  -> doPackages ps
+                      between "Building cache" "done" P.retrieveRecentPackages
+      Packages ps  -> D.doPackages ps
 
 
 -- | parse the input package and options
