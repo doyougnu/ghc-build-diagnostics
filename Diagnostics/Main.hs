@@ -60,6 +60,7 @@ import           Data.List.Extra         (groupOn)
 
 import GHC.Types
 import qualified GHC.Utils as U
+import qualified GHC.Packages as P
 
 data Mode = Packages PackageSet -- ^ Analyze a set of packages, read from stdin
           | RefreshPList        -- ^ Refresh the package list
@@ -104,44 +105,3 @@ parseInput = packageInput <|> refresh <|> clean <|> build
                                        Semi.<> O.short 'b'
                                        Semi.<> O.help "rebuild the entire package cache"
                                      )
-
-
--- | get a list of packages from cabal
-retrievePackageList :: T.Text -> Sh.Sh ()
-retrievePackageList (T.unpack -> targetFile) =
-  do ps <- Sh.silently $
-           T.lines <$> Sh.run "cabal" ["list", "--simple"]
-     Sh.writefile targetFile (T.unlines ps)
-
-
--- | Download all packages in the package list from hackage by some predicate
-retrieveAllPackagesBy :: ([(Package, Version)] -> [(Package, Version)]) -> Sh.Sh ()
-retrieveAllPackagesBy by =
-  do Sh.whenM (not <$> U.exists packageList)
-       (Sh.echo "No package list in cache, rebuilding"
-        >> retrievePackageList packageList)
-     ps <- by . fmap (second T.tail . T.breakOn " ") . T.lines <$> Sh.readfile (Sh.fromText packageList)
-     Sh.echo "Resetting tar cache"
-     U.resetTarCache
-     Sh.echo "Downloading packages to cache"
-     U.wget ps $ T.pack (workingDir Sh.</> tarCache)
-
-
-retrieveRecentPackages :: Sh.Sh ()
-retrieveRecentPackages = Sh.whenM (not <$> U.exists packageList)
-                         $ retrieveAllPackagesBy (fmap last . groupOn fst)
-
-
-unzipPackage :: Package -> Sh.Sh ()
-unzipPackage p = do Sh.mkdir_p (toPath target)
-                    Sh.whenM (not <$> U.exists target) (U.expand package target)
-  where package = U.toCompressedPackage p
-        target  = U.toPackageDirectory  p
-
-
-findPackageProject :: Package -> Sh.Sh ()
-findPackageProject p = Sh.cd $ workingDir Sh.</> tarCache Sh.</> p
-
-
-doPackages :: PackageSet -> Sh.Sh ()
-doPackages (unPackageSet -> ps) = unzipPackage (head ps)
