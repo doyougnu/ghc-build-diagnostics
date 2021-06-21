@@ -121,6 +121,7 @@ retrieveAllPackagesBy by =
        (Sh.echo "No package list in cache, rebuilding"
         >> retrievePackageList packageList)
      ps <- by . fmap (second T.tail . T.breakOn " ") . T.lines <$> Sh.readfile (Sh.fromText packageList)
+
      Sh.echo "Resetting tar cache"
      U.resetTarCache
      Sh.echo "Downloading packages to cache"

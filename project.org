@@ -23,7 +23,11 @@
 
 * Want
 
-** Automatic pull of packages from hackage
+** DONE Automatic pull of packages from hackage
+   CLOSED: [2021-06-20 Sun 21:51]
+
+   - Note taken on [2021-06-20 Sun 21:51] \\
+     implemented with caching and calls to ~wget~
 
 ** Automatic diagnostics
 
@@ -36,7 +40,8 @@
 ** DONE Initial setup
    CLOSED: [2021-05-30 Sun 17:31]
 
-** TODO Nixify
+** DONE Nixify
+   CLOSED: [2021-06-20 Sun 21:49]
 
 ** TODO Read in hackage package
 
