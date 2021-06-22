@@ -10,7 +10,7 @@
 -- Shelly
 -----------------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -Wall -Werror     #-}
+{-# OPTIONS_GHC -Wall -Werror  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
@@ -19,7 +19,6 @@ module GHC.Utils where
 
 import qualified Data.Text          as T
 import qualified Shelly             as Sh
-import qualified Data.Text.Encoding as E
 
 import           System.FilePath    (takeBaseName)
 -- import qualified Distribution.Package                    as P

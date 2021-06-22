@@ -32,7 +32,6 @@ executable ghc-build-diagnostics
                      , Cabal
                      , optparse-applicative
                      , text
-                     , bytestring
                      , shelly
                      , extra
                      , filepath

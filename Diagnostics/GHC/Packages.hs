@@ -66,7 +66,6 @@ unzipPackage package =
        Sh.echo "Initializing Project Cache" >>
         Sh.mkdir_p (toPath pCache)
      U.expand package pCache
-
   where pCache = toText $ workingDir Sh.</> projectCache
 
 

@@ -1,6 +1,5 @@
 { mkDerivation, base, optparse-applicative, shelly, stdenv,
-  text, filepath, extra, ghc, ghc-paths, wget, gnutar, Cabal,
-  bytestring }:
+  text, filepath, extra, ghc, ghc-paths, wget, gnutar, Cabal }:
 mkDerivation {
   pname = "ghc-build-diagnostics";
   version = "0.1.0.0";
