@@ -13,10 +13,10 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE ViewPatterns       #-}
 
 module GHC.Types
   ( Package
-  , PackageDir
   , Version
   , URL
   , PackageSet(..)
@@ -25,6 +25,8 @@ module GHC.Types
   , ProjectCache
   , ToText(..)
   , ToPath(..)
+  , CabalFile(..)
+  , mkCabalFile
   , workingDir
   , packageList
   , tarCache
@@ -35,12 +37,21 @@ module GHC.Types
 import qualified Data.Text as T
 import qualified Shelly    as Sh
 
+-- import Data.ByteString    (ByteString)
+-- import Data.Text.Encoding (encodeUtf8)
+
 -- | Type synonyms for more descriptive types
 type Package      = T.Text
-type PackageDir   = T.Text
 type ProjectCache = T.Text
 type Version      = T.Text
 type URL          = T.Text
+
+
+newtype CabalFile = CabalFile { unCabalFile :: T.Text }
+                  deriving stock Show
+
+mkCabalFile :: T.Text -> Sh.Sh CabalFile
+mkCabalFile = fmap (CabalFile . toText) . Sh.canonicalize . toPath
 
 -- | a bunch of packages
 newtype PackageSet = PackageSet { unPackageSet :: [Package] }
@@ -51,13 +62,13 @@ newtype CompressedPackage = CompressedPackage { unCompressedPackage :: Package }
 
 -- | The decompressed project directory for a given package from hackage. These
 -- should always occur in the ProjectCache.
-newtype PackageDirectory = PackageDirectory  { unPackageDirectory :: FilePath }
+newtype PackageDirectory = PackageDirectory  { unPackageDirectory :: Package }
                          deriving stock Show
 
 -- | Type Class to project a type to text
 class    ToText a where toText :: a -> T.Text
 instance ToText CompressedPackage where toText = unCompressedPackage
-instance ToText PackageDirectory  where toText = T.pack . unPackageDirectory
+instance ToText PackageDirectory  where toText = unPackageDirectory
 instance ToText FilePath          where toText = Sh.toTextIgnore
 
 -- | Type Class to project a type to a file path

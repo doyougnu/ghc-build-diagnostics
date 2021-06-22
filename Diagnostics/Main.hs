@@ -40,15 +40,14 @@ main = do
   let between before after go = do Sh.echo before
                                    void go
                                    Sh.echo after
-  Sh.shelly $
-    case mode of
-      RefreshPList -> between "Refreshing package list" "all done" $
-                      P.retrievePackageList packageList
-      Clean        -> between "Cleaning..." "done" .
-                      Sh.shelly $ Sh.rm_rf (T.unpack workingDir)
-      BuildCache   -> U.createWorkingDir >>
-                      between "Building cache" "done" P.retrieveRecentPackages
-      Packages ps  -> D.doPackages ps
+  case mode of
+    RefreshPList -> Sh.shelly $ between "Refreshing package list" "all done" $
+                    P.retrievePackageList packageList
+    Clean        -> Sh.shelly $
+                    between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
+    BuildCache   -> Sh.shelly $ U.createWorkingDir >>
+                    between "Building cache" "done" P.retrieveRecentPackages
+    Packages ps  -> D.doPackages ps
 
 
 -- | parse the input package and options

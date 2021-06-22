@@ -10,17 +10,22 @@
 -- Shelly
 -----------------------------------------------------------------------------
 
-{-# OPTIONS_GHC -Wall -Werror     #-}
-{-# LANGUAGE FlexibleInstances    #-}
-{-# LANGUAGE OverloadedStrings    #-}
-{-# LANGUAGE ViewPatterns         #-}
+-- {-# OPTIONS_GHC -Wall -Werror     #-}
+{-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module GHC.Utils where
 
-import qualified Data.Text as T
-import qualified Shelly    as Sh
+import qualified Data.Text          as T
+import qualified Shelly             as Sh
+import qualified Data.Text.Encoding as E
 
-import System.FilePath (takeBaseName)
+import           System.FilePath    (takeBaseName)
+-- import qualified Distribution.Package                    as P
+-- import qualified Distribution.PackageDescription         as PD
+import qualified Distribution.PackageDescription.Parsec  as Parse
+import Distribution.Verbosity (normal)
 
 import           GHC.Types
 
@@ -29,7 +34,7 @@ class Exists a where exists :: a -> Sh.Sh Bool
 instance Exists CompressedPackage where exists = exists    .
                                                  T.unpack  .
                                                  unCompressedPackage
-instance Exists PackageDirectory where exists = Sh.test_d . unPackageDirectory
+instance Exists PackageDirectory where exists = Sh.test_d . toPath . unPackageDirectory
 instance Exists FilePath         where exists = Sh.test_f
 instance Exists T.Text           where exists = Sh.test_f . T.unpack
 
@@ -41,6 +46,7 @@ toUrl (p,v) = hackage <> T.pack (p Sh.</> p)
   where
     dash    = "-" :: T.Text
     hackage = "http://hackage.haskell.org/package/"
+
 
 -- | decompress a package to a package directory
 expand :: CompressedPackage -> ProjectCache -> Sh.Sh ()
@@ -60,7 +66,8 @@ toCompressedPackage (T.unpack -> p) = CompressedPackage . T.pack $
                                       workingDir Sh.</> tarCache Sh.</> p Sh.<.> tarGz
 
 toPackageDirectory :: Package -> PackageDirectory
-toPackageDirectory p = PackageDirectory $! workingDir Sh.</> projectCache Sh.</> p
+toPackageDirectory p = PackageDirectory . toText $! workingDir Sh.</> projectCache Sh.</> p
+
 
 compressedToPackageDir :: CompressedPackage -> PackageDirectory
 compressedToPackageDir = toPackageDirectory         .
@@ -83,3 +90,17 @@ resetTarCache = Sh.rm_rf (workingDir Sh.</> tarCache)
 
 createWorkingDir :: Sh.Sh ()
 createWorkingDir = Sh.mkdir_p (T.unpack workingDir)
+
+findInProject :: PackageDirectory -> T.Text -> Sh.Sh T.Text
+findInProject (unPackageDirectory -> path) toFind =
+  Sh.command "find" [path, "-name", toFind] []
+
+
+findCabal :: PackageDirectory -> Sh.Sh CabalFile
+findCabal path = findInProject path "*.cabal" >>= mkCabalFile
+
+
+getDependencies :: CabalFile -> IO ()
+getDependencies (T.strip . unCabalFile -> cbl) =
+  do desc <- Parse.readGenericPackageDescription normal (toPath cbl)
+     print desc

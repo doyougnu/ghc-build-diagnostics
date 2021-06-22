@@ -104,8 +104,10 @@ diagnosePackage p = runGhc (Just libdir) $
      liftIO $ putStrLn $ showGhc ( modInfoExports (moduleInfo tmod) )
 
 
-doPackages :: PackageSet -> Sh.Sh ()
+doPackages :: PackageSet -> IO ()
 doPackages (unPackageSet -> ps) =
-  do let pname = U.toPackageDirectory $ head ps
-     P.unzipPackage $ U.toCompressedPackage (head ps)
-     -- diagnosePackage
+  do cbl <- Sh.shelly $
+       do let pname = U.toPackageDirectory $ head ps
+          P.unzipPackage $ U.toCompressedPackage (head ps)
+          U.findCabal pname
+     U.getDependencies cbl

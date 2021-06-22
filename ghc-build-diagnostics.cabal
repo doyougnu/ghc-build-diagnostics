@@ -29,8 +29,10 @@ executable ghc-build-diagnostics
                      , GHC.Packages
                      , GHC.Diagnostics
   build-depends:       base >=4.14 && <4.15
+                     , Cabal
                      , optparse-applicative
                      , text
+                     , bytestring
                      , shelly
                      , extra
                      , filepath
