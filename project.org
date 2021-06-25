@@ -43,7 +43,8 @@
 ** DONE Nixify
    CLOSED: [2021-06-20 Sun 21:49]
 
-** TODO Read in hackage package
+** DONE Read in hackage package
+   CLOSED: [2021-06-22 Tue 19:40]
 
 ** TODO Call compiler packages on package
 

@@ -25,7 +25,11 @@ module GHC.Types
   , ToText(..)
   , ToPath(..)
   , CabalFile(..)
+  , MainFile(..)
+  , Executable
+  , Library
   , mkCabalFile
+  , mkMainFile
   , workingDir
   , packageList
   , tarCache
@@ -47,9 +51,20 @@ type URL          = T.Text
 newtype CabalFile = CabalFile { unCabalFile :: T.Text }
                   deriving stock Show
 
-
 mkCabalFile :: T.Text -> Sh.Sh CabalFile
 mkCabalFile = fmap (CabalFile . toText) . Sh.canonicalize . toPath
+
+newtype MainFile a = MainFile { unMainFile :: T.Text }
+                 deriving stock Show
+
+-- | The Kind of haskell source files. Either a Main.hs file for an executable
+-- package or a <package>.hs file for a library. In either case we use cabal to
+-- get these and track the kind in a phantom type variable.
+data Executable
+data Library
+
+mkMainFile :: T.Text -> Sh.Sh (MainFile a)
+mkMainFile = fmap (MainFile . toText) . Sh.canonicalize . toPath
 
 
 -- | a bunch of packages

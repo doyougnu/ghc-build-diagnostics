@@ -73,11 +73,12 @@ banner msg = liftIO $ putStrLn (
 
 diagnosePackage :: Package -> IO ()
 diagnosePackage p = runGhc (Just libdir) $
-  do env <- getSession
+  do srcTarget <- Sh.shelly $ toPath . unMainFile <$> packageEntryPoint p
+     env <- getSession
      dflags <- getSessionDynFlags
      setSessionDynFlags $ dflags { hscTarget = HscInterpreted }
 
-     target <- guessTarget "Example.hs" Nothing
+     target <- guessTarget srcTarget Nothing
      setTargets [target]
      load LoadAllTargets
      modSum <- getModSummary $ mkModuleName "Example"
@@ -104,10 +105,8 @@ diagnosePackage p = runGhc (Just libdir) $
      liftIO $ putStrLn $ showGhc ( modInfoExports (moduleInfo tmod) )
 
 
-doPackages :: PackageSet -> IO ()
-doPackages (unPackageSet -> ps) =
-  do cbl <- Sh.shelly $
-       do let pname = U.toPackageDirectory $ head ps
-          P.unzipPackage $ U.toCompressedPackage (head ps)
-          U.findCabal pname
-     U.getDependencies cbl
+packageEntryPoint :: Package -> Sh.Sh (MainFile Executable)
+packageEntryPoint p =
+  do let pname = U.toPackageDirectory p
+     P.unzipPackage $ U.toCompressedPackage p
+     U.findMain pname

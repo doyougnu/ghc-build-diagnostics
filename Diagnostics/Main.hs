@@ -47,7 +47,7 @@ main = do
                     between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache   -> Sh.shelly $ U.createWorkingDir >>
                     between "Building cache" "done" P.retrieveRecentPackages
-    Packages ps  -> D.doPackages ps
+    Packages ps  -> D.diagnosePackage (head . unPackageSet $ ps)
 
 
 -- | parse the input package and options

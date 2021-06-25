@@ -21,10 +21,14 @@ import qualified Data.Text          as T
 import qualified Shelly             as Sh
 
 import           System.FilePath    (takeBaseName)
+import           Data.Maybe         (isNothing)
+-- import           Control.Monad      ((<=<))
 -- import qualified Distribution.Package                    as P
--- import qualified Distribution.PackageDescription         as PD
+import qualified Distribution.PackageDescription         as PD
 import qualified Distribution.PackageDescription.Parsec  as Parse
 import Distribution.Verbosity (normal)
+-- import Distribution.Types.UnqualComponentName (UnqualComponentName)
+-- import Distribution.Types.Dependency
 
 import           GHC.Types
 
@@ -90,6 +94,7 @@ resetTarCache = Sh.rm_rf (workingDir Sh.</> tarCache)
 createWorkingDir :: Sh.Sh ()
 createWorkingDir = Sh.mkdir_p (T.unpack workingDir)
 
+
 findInProject :: PackageDirectory -> T.Text -> Sh.Sh T.Text
 findInProject (unPackageDirectory -> path) toFind =
   Sh.command "find" [path, "-name", toFind] []
@@ -99,7 +104,32 @@ findCabal :: PackageDirectory -> Sh.Sh CabalFile
 findCabal path = findInProject path "*.cabal" >>= mkCabalFile
 
 
-getDependencies :: CabalFile -> IO ()
-getDependencies (T.strip . unCabalFile -> cbl) =
-  do desc <- Parse.readGenericPackageDescription normal (toPath cbl)
-     print desc
+findMain :: PackageDirectory -> Sh.Sh (MainFile a)
+findMain p = findCabal p >>= go >>= findInProject p >>= mkMainFile
+  where go :: CabalFile -> Sh.Sh T.Text
+        go (T.strip . unCabalFile -> cbl) =
+          do desc <- Sh.liftIO $ Parse.readGenericPackageDescription normal (toPath cbl)
+             let mn = head $ getMainExe desc
+             return $ T.pack mn
+
+
+
+isLibrary :: PD.GenericPackageDescription -> Bool -- Maybe (PD.CondTree PD.ConfVar [P.Dependency] PD.Library)
+isLibrary = isNothing . PD.condLibrary
+
+
+isExecutable :: PD.GenericPackageDescription -> Bool
+isExecutable = null . PD.condExecutables
+
+
+getMainExe :: PD.GenericPackageDescription -> [FilePath]
+getMainExe = fmap (PD.modulePath . PD.condTreeData . snd) . PD.condExecutables
+
+
+-- getMainLib :: PD.GenericPackageDescription -> [FilePath]
+-- getMainLib = maybe mempty go . PD.condLibrary
+--   where go = PD.modulePath . PD.condTreeData
+
+
+getDependencies' :: PD.GenericPackageDescription -> [FilePath]
+getDependencies' = fmap (PD.modulePath . PD.condTreeData . snd) . PD.condExecutables
