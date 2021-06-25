@@ -10,16 +10,15 @@
 -----------------------------------------------------------------------------
 
 -- {-# OPTIONS_GHC -Wall -Werror  #-}
-{-# LANGUAGE ViewPatterns #-}
 
 module GHC.Diagnostics where
 
 -- Compiler
-import           DriverPipeline
+-- import           DriverPipeline
 import           DynFlags
 import           GHC
 import           GHC.Paths              (libdir)
-import           HscMain
+-- import           HscMain
 import           HscTypes
 import           Outputable
 
@@ -48,8 +47,10 @@ import           CoreToStg              (coreToStg)
 -- import AsmCodeGen         ( nativeCodeGen )
 -- import UniqSupply         ( mkSplitUniqSupply, initUs_ )
 
-import           Control.Monad          (void)
+-- import           Control.Monad          (void)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           System.Directory       (setCurrentDirectory)
+import           System.FilePath        (takeBaseName, takeDirectory)
 
 import qualified GHC.Packages           as P
 import qualified Shelly                 as Sh
@@ -72,37 +73,41 @@ banner msg = liftIO $ putStrLn (
     n = (76 - length msg) `div` 2
 
 diagnosePackage :: Package -> IO ()
-diagnosePackage p = runGhc (Just libdir) $
+diagnosePackage p =
   do srcTarget <- Sh.shelly $ toPath . unMainFile <$> packageEntryPoint p
-     env <- getSession
-     dflags <- getSessionDynFlags
-     setSessionDynFlags $ dflags { hscTarget = HscInterpreted }
+     let mainName = takeBaseName srcTarget
+         dirName  = takeDirectory srcTarget
+     setCurrentDirectory dirName
+     runGhc (Just libdir) $
+       do env <- getSession
+          dflags <- getSessionDynFlags
+          setSessionDynFlags $ dflags { hscTarget = HscInterpreted }
 
-     target <- guessTarget srcTarget Nothing
-     setTargets [target]
-     load LoadAllTargets
-     modSum <- getModSummary $ mkModuleName "Example"
+          target <- guessTarget mainName Nothing
+          setTargets [target]
+          load LoadAllTargets
+          modSum <- getModSummary $ mkModuleName mainName
 
-     pmod <- parseModule modSum      -- ModuleSummary
-     tmod <- typecheckModule pmod    -- TypecheckedSource
-     dmod <- desugarModule tmod      -- DesugaredModule
-     let core = coreModule dmod      -- CoreModule
-         stg = coreToStg dflags (mg_module core) (mg_binds core)
+          pmod <- parseModule modSum      -- ModuleSummary
+          tmod <- typecheckModule pmod    -- TypecheckedSource
+          dmod <- desugarModule tmod      -- DesugaredModule
+          let core = coreModule dmod      -- CoreModule
+              stg = coreToStg dflags (mg_module core) (mg_binds core)
 
-     liftIO $ banner "Parsed Source"
-     liftIO $ putStrLn $ showGhc ( parsedSource pmod )
+          liftIO $ banner "Parsed Source"
+          liftIO $ putStrLn $ showGhc ( parsedSource pmod )
 
-     liftIO $ banner "Renamed Module"
-     liftIO $ putStrLn $ showGhc ( tm_renamed_source tmod )
+          liftIO $ banner "Renamed Module"
+          liftIO $ putStrLn $ showGhc ( tm_renamed_source tmod )
 
-     liftIO $ banner "Typechecked Module"
-     liftIO $ putStrLn $ showGhc ( tm_typechecked_source tmod )
+          liftIO $ banner "Typechecked Module"
+          liftIO $ putStrLn $ showGhc ( tm_typechecked_source tmod )
 
-     liftIO $ banner "Typed Toplevel Definitions"
-     liftIO $ putStrLn $ showGhc ( modInfoTyThings (moduleInfo tmod) )
+          liftIO $ banner "Typed Toplevel Definitions"
+          liftIO $ putStrLn $ showGhc ( modInfoTyThings (moduleInfo tmod) )
 
-     liftIO $ banner "Typed Toplevel Exports"
-     liftIO $ putStrLn $ showGhc ( modInfoExports (moduleInfo tmod) )
+          liftIO $ banner "Typed Toplevel Exports"
+          liftIO $ putStrLn $ showGhc ( modInfoExports (moduleInfo tmod) )
 
 
 packageEntryPoint :: Package -> Sh.Sh (MainFile Executable)
