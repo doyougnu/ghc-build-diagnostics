@@ -81,7 +81,9 @@ diagnosePackage p =
      runGhc (Just libdir) $
        do env <- getSession
           dflags <- getSessionDynFlags
-          setSessionDynFlags $ dflags { hscTarget = HscInterpreted }
+          setSessionDynFlags $ dflags { hscTarget = HscInterpreted
+                                      , ghcMode   = CompManager
+                                      }
 
           target <- guessTarget mainName Nothing
           setTargets [target]

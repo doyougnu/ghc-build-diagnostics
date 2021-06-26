@@ -2,17 +2,19 @@
 
 let
   config = {
+    # need to enable these for build inputs in nix-shell
+    allowUnsupportedSystem = true;
     allowBroken = true;
+    allowUnfree = true;
+
+    # other configuration for some packages, we dont need these to actually work
+    cplex.releasePath = "/dev/null";
+
     packageOverrides = pkgs: rec {
       haskell = pkgs.haskell // {
         packages = pkgs.haskell.packages // {
           "${compiler}" = pkgs.haskell.packages.${compiler}.override {
             overrides = haskellPackagesNew: haskellPackagesOld: rec {
-
-              # vsmt = haskellPackagesNew.callPackage ./vsmt.nix {
-              #   z3-haskell = haskellPackagesNew.callPackage /home/doyougnu/programming/haskell-z3/z3.nix { z3 = pkgs.z3; };
-              #   zlib = pkgs.zlib;
-              # };
 
               ghc-build-diagnostics = haskellPackagesNew.callPackage ./default.nix {};
               # unordered-containers = haskellPackagesNew.callPackage ./unordered-containers.nix {};
@@ -33,17 +35,20 @@ in
     shell = pkgs.haskell.packages.${compiler}.shellFor {
       packages = p: [ghc-build-diagnostics];
       withIDe = true;
-      buildInputs = [ pkgs.haskellPackages.hlint
-                      pkgs.haskellPackages.stylish-haskell
-                      pkgs.haskellPackages.hasktags
-                      pkgs.haskellPackages.apply-refact
-                      # pkgs.haskellPackages.hindent
-                      pkgs.haskellPackages.ghcide
-                      pkgs.haskellPackages.ghc-prof-flamegraph
-                      pkgs.haskellPackages.profiteur
-                      pkgs.zlib
-                      pkgs.cabal-install
-                      pkgs.wget
-                    ];
+      buildInputs = with pkgs; [ zlib
+                                 cabal-install
+                                 wget
+                               ]
+      ++
+      (with haskellPackages; [ hlint
+                               stylish-haskell
+                               hasktags
+                               apply-refact
+                               hindent
+                               ghcide
+                               ghc-prof-flamegraph
+                               profiteur
+                               conduit
+                             ]);
     };
   }
