@@ -90,16 +90,27 @@ diagnosePackage p =
           target <- guessTarget mainName Nothing
           setTargets [target]
           load LoadAllTargets
+
+          -- imps <- mapM parseImportDecl ["Data.Conduit"]
+          -- setContext $ IIDecl <$> imps
+
+          a <- depanal [] False
+
+          liftIO $ banner "Dependencies"
+          -- liftIO $ putStrLn $ showGhc  a
+          liftIO $ mapM (putStrLn . showGhc) (mgModSummaries a)
+
           modSum <- getModSummary $ mkModuleName mainName
 
+          liftIO $ banner "Module Summary"
+          liftIO $ putStrLn $ showGhc modSum
+
           pmod <- parseModule modSum      -- ModuleSummary
-          tmod <- typecheckModule pmod    -- TypecheckedSource
-          dmod <- desugarModule tmod      -- DesugaredModule
-          let core = coreModule dmod      -- CoreModule
-              stg = coreToStg dflags (mg_module core) (mg_binds core)
 
           liftIO $ banner "Parsed Source"
           liftIO $ putStrLn $ showGhc ( parsedSource pmod )
+
+          tmod <- typecheckModule pmod    -- TypecheckedSource
 
           liftIO $ banner "Renamed Module"
           liftIO $ putStrLn $ showGhc ( tm_renamed_source tmod )
@@ -112,6 +123,14 @@ diagnosePackage p =
 
           liftIO $ banner "Typed Toplevel Exports"
           liftIO $ putStrLn $ showGhc ( modInfoExports (moduleInfo tmod) )
+
+          dmod <- desugarModule tmod      -- DesugaredModule
+          let core = coreModule dmod      -- CoreModule
+              stg = coreToStg dflags (mg_module core) (mg_binds core)
+
+          return ()
+
+
 
 
 packageEntryPoint :: Package -> Sh.Sh (MainFile Executable)
