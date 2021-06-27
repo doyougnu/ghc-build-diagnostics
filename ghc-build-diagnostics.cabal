@@ -24,7 +24,7 @@ executable ghc-build-diagnostics
                      , GHC.Utils
                      , GHC.Packages
                      , GHC.Diagnostics
-  build-depends:       base >=4.14 && <4.15
+  build-depends:       base >=4.14
                      , Cabal
                      , directory
                      , extra

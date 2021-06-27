@@ -15,12 +15,14 @@ module GHC.Diagnostics where
 
 -- Compiler
 -- import           DriverPipeline
-import           DynFlags
 import           GHC
+import           GHC.Driver.Session
+import           GHC.CoreToStg
 import           GHC.Paths              (libdir)
 -- import           HscMain
-import           HscTypes
-import           Outputable
+-- import           HscTypes
+import           GHC.Utils.Outputable
+import           GHC.Plugins -- for ModGuts
 
 -- Core Types
 -- import Var
@@ -39,7 +41,7 @@ import           Outputable
 
 -- Core Passes
 -- import CorePrep           (corePrepPgm)
-import           CoreToStg              (coreToStg)
+-- import           CoreToStg              (coreToStg)
 -- import CmmInfo            (cmmToRawCmm )
 -- import CmmLint            (cmmLint)
 -- import CmmPipeline        (cmmPipeline)
@@ -78,11 +80,11 @@ diagnosePackage p =
      let mainName = takeBaseName srcTarget
          dirName  = takeDirectory srcTarget
      setCurrentDirectory dirName
-     runGhc (Just libdir) $
+     defaultErrorHandler defaultFatalMessager defaultFlushOut $
+       runGhc (Just libdir) $
        do env <- getSession
           dflags <- getSessionDynFlags
           setSessionDynFlags $ dflags { hscTarget = HscInterpreted
-                                      , ghcMode   = CompManager
                                       }
 
           target <- guessTarget mainName Nothing
