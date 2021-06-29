@@ -41,9 +41,9 @@ main = do
                                    Sh.echo after
   Sh.shelly $ case mode of
     Clean         -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
-    BuildCache ps -> U.createWorkingDir >>
+    BuildCache ps -> U.cacheExistsOrMake >>
                      between "Building cache" "done" (P.buildCache ps)
-    Packages ps   -> D.diagnosePackages ps
+    Packages ps   -> U.cacheExistsOrMake >> D.diagnosePackages ps
 
 
 -- | parse the input package and options

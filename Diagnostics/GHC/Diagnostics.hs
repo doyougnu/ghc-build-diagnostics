@@ -12,20 +12,19 @@
 {-# OPTIONS_GHC -Wall -Werror  #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE ViewPatterns      #-}
 
 module GHC.Diagnostics where
 
 
 
-import           Data.Text (pack)
+import           Data.Text       (pack,stripEnd)
+import           System.FilePath (takeFileName)
 
-
-
-
-import qualified Shelly    as Sh
+import qualified Shelly          as Sh
 
 import           GHC.Types
-import qualified GHC.Utils as U
+import qualified GHC.Utils       as U
 
 
 diagnosePackage :: Package -> Sh.Sh ()
@@ -36,7 +35,11 @@ diagnosePackage p =
                      Sh.cd cache
                      U.cabalGet p
                      -- find the new directory and enter it
-                     U.findIn "." (p <> "*") >>= Sh.cd . toPath
+                     U.findIn "." (p <> "*") [ "-type"
+                                             , "d"
+                                             , "-maxdepth"
+                                             , "1"
+                                             ] >>= Sh.cd . takeFileName . toPath . stripEnd
                      U.buildTimings
        Just cached -> U.findInProject cached logFile >>= \case
          -- does the cache have a timing file?
@@ -47,4 +50,6 @@ diagnosePackage p =
 
 
 diagnosePackages :: PackageSet -> Sh.Sh ()
-diagnosePackages = mapM_ diagnosePackage . unPackageSet
+diagnosePackages (unPackageSet -> ps) =
+  do rootDir <- Sh.pwd
+     mapM_ (\p -> Sh.cd rootDir >> diagnosePackage p) ps

@@ -10,7 +10,7 @@
 -- Shelly
 -----------------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -Wall -Werror  #-}
+{-# OPTIONS_GHC -Wall -Werror  #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
@@ -20,7 +20,6 @@ module GHC.Utils where
 
 import qualified Data.Text                              as T
 import qualified Shelly                                 as Sh
-import qualified Text.Regex.TDFA                        as R
 
 import           Control.Exception.Base                 (SomeException)
 import           Data.List                              ((\\))
@@ -95,12 +94,22 @@ resetTarCache = Sh.rm_rf (workingDir Sh.</> tarCache)
 createWorkingDir :: Sh.Sh ()
 createWorkingDir = Sh.mkdir_p (T.unpack workingDir)
 
+
+createCache :: Sh.Sh ()
+createCache = Sh.mkdir_p cache
+
+
+-- | check that the cache exists, if not make it
+cacheExistsOrMake :: Sh.Sh ()
+cacheExistsOrMake = createWorkingDir >> createCache
+
 -- | low level wrapper around find
 findIn :: T.Text -- ^ Where to look
        -> T.Text -- ^ thing to find
+       -> [T.Text] -- ^ Extra commands
        -> Sh.Sh T.Text
 findIn here thing = go
-  where go = Sh.command "find" [here, "-name", thing] []
+  where go = Sh.command "find" [here, "-name", thing]
 
 
 findInProject :: PackageDirectory -> T.Text -> Sh.Sh (Maybe T.Text)
