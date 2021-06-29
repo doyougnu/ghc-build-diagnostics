@@ -95,6 +95,13 @@ resetTarCache = Sh.rm_rf (workingDir Sh.</> tarCache)
 createWorkingDir :: Sh.Sh ()
 createWorkingDir = Sh.mkdir_p (T.unpack workingDir)
 
+-- | low level wrapper around find
+findIn :: T.Text -- ^ Where to look
+       -> T.Text -- ^ thing to find
+       -> Sh.Sh T.Text
+findIn here thing = go
+  where go = Sh.command "find" [here, "-name", thing] []
+
 
 findInProject :: PackageDirectory -> T.Text -> Sh.Sh (Maybe T.Text)
 findInProject (unPackageDirectory -> path) toFind = check <$> go

@@ -80,7 +80,7 @@ row :: Parser Row
 row = do _ <- startingExcls
          _phase  <- phase
          _module <- module'
-         void $ colon
+         void colon
          _time   <- time
          _alloc  <- alloc
          return Row{..}
@@ -92,9 +92,3 @@ data Row = Row { _phase  :: !Text
                , _time   :: !Float
                , _alloc  :: !Float
                } deriving (Generic, Show)
-
-t :: Text
-t = "!!! Simplifier [Data.Aeson.Encode]: finished in 0.22 milliseconds, allocated 0.126 megabytes"
-
-p :: Text
-p = "!!! Exitification transformation [Data.Aeson.Encode]: finished in 0.10 milliseconds, allocated 0.062 megabytes"
