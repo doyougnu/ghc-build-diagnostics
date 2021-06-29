@@ -27,8 +27,8 @@ import           GHC.Types
 import qualified GHC.Utils       as U
 
 
-diagnosePackage :: Package -> Sh.Sh ()
-diagnosePackage p =
+diagnosePackageBy :: Sh.Sh () -> Package -> Sh.Sh ()
+diagnosePackageBy timeIt p =
   do -- have we seen the package before?
      U.findProject p >>= \case
        Nothing -> do Sh.echo (pack "Package not in cache...Building")
@@ -40,16 +40,30 @@ diagnosePackage p =
                                              , "-maxdepth"
                                              , "1"
                                              ] >>= Sh.cd . takeFileName . toPath . stripEnd
-                     U.buildTimings
+                     timeIt
        Just cached -> U.findInProject cached logFile >>= \case
          -- does the cache have a timing file?
          Nothing  -> do Sh.cd . toPath . unPackageDirectory $ cached
                         Sh.rm_rf "dist-newstyle"
-                        U.buildTimings
+                        timeIt
          Just _   -> Sh.echo $ pack "Log already exists for package: " <> p <> pack "...skipping"
+
+
+diagnosePackage :: Package -> Sh.Sh ()
+diagnosePackage = diagnosePackageBy U.buildTimings
+
+
+diagnosePackageWithGhcs :: GhcSet -> Package -> Sh.Sh ()
+diagnosePackageWithGhcs = diagnosePackageBy .  U.buildTimingsWithGhc
 
 
 diagnosePackages :: PackageSet -> Sh.Sh ()
 diagnosePackages (unPackageSet -> ps) =
   do rootDir <- Sh.pwd
      mapM_ (\p -> Sh.cd rootDir >> diagnosePackage p) ps
+
+
+diagnosePackagesWithGhcs :: PackageSet -> GhcSet -> Sh.Sh ()
+diagnosePackagesWithGhcs (unPackageSet -> ps) gs =
+  do rootDir <- Sh.pwd
+     mapM_ (\p -> Sh.cd rootDir >> diagnosePackageWithGhcs gs p) ps

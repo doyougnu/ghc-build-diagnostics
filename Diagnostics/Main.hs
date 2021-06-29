@@ -28,9 +28,9 @@ import qualified GHC.Utils           as U
 import           GHC.Types
 
 -- | The mode the command line application is run in
-data Mode = Packages   PackageSet -- ^ Analyze a set of packages, read from stdin
-          | BuildCache PackageSet -- ^ Download all the packages from hackage
-          | Clean                 -- ^ Delete the cache
+data Mode = Packages   PackageSet (Maybe GhcFile) -- ^ Analyze a set of packages, read from stdin
+          | BuildCache PackageSet         -- ^ Download all the packages from hackage
+          | Clean                         -- ^ Delete the cache
 
 
 main :: IO ()
@@ -40,10 +40,14 @@ main = do
                                    void go
                                    Sh.echo after
   Sh.shelly $ case mode of
-    Clean         -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
-    BuildCache ps -> U.cacheExistsOrMake >>
-                     between "Building cache" "done" (P.buildCache ps)
-    Packages ps   -> U.cacheExistsOrMake >> D.diagnosePackages ps
+    Clean          -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
+    BuildCache ps  -> U.cacheExistsOrMake >>
+                      between "Building cache" "done" (P.buildCache ps)
+    Packages ps gs -> case gs of
+      Nothing      -> U.cacheExistsOrMake >> D.diagnosePackages ps
+      Just ghcFile -> do ghcs <- mkGhcSet ghcFile
+                         _ <- U.cacheExistsOrMake
+                         D.diagnosePackagesWithGhcs ps ghcs
 
 
 -- | parse the input package and options
@@ -51,7 +55,13 @@ parseInput :: O.Parser Mode
 parseInput = O.subparser $ packageInput <> clean <> build
   where packageInput = O.command "diagnose" $
                        O.info
-                       (Packages . PackageSet <$> some (O.argument O.str (O.metavar "PACKAGE")))
+                       (Packages
+                        <$> (PackageSet <$> some (O.argument O.str (O.metavar "PACKAGE")))
+                        <*> O.optional (O.strOption ( O.long "ghcs"
+                                         <> O.short 'g'
+                                         <> O.metavar "GHCSFILE"
+                                         <> O.help "file that holds paths to each ghc version to use")))
+
                        (O.progDesc "Build and diagnose the packages passed by stdin")
 
         clean   = O.command "clean" $

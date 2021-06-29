@@ -158,6 +158,13 @@ cabalGet p = Sh.catch_sh go handle -- cabal will error if the directory already
     handle :: SomeException -> Sh.Sh()
     handle _  = return ()
 
+cabalBuild :: [T.Text] -> Sh.Sh T.Text
+cabalBuild = Sh.command "cabal" [ "new-build"
+                                , "--allow-newer"
+                                , "--ghc-option=-ddump-timings"
+                                , "--ghc-option=-v2"
+                                ]
+
 
 cachedPackages :: Sh.Sh PackageSet
 cachedPackages = PackageSet . fmap packageName <$> Sh.lsT cache
@@ -173,10 +180,15 @@ validatePackages (unPackageSet -> ps) =
      return . RebuildSet $ ps \\ cachedPs
 
 
+buildTimingsBy :: [T.Text] -> Sh.Sh ()
+buildTimingsBy args = cabalBuild args
+                      Sh.-|- Sh.command_ "tee" [logFile] []
+
+
 buildTimings :: Sh.Sh ()
-buildTimings = Sh.command "cabal" [ "new-build"
-                                  , "--allow-newer"
-                                  , "--ghc-option=-ddump-timings"
-                                  , "--ghc-option=-v2"
-                                  ] []
-               Sh.-|- Sh.command_ "tee" [logFile] []
+buildTimings = cabalBuild mempty Sh.-|- Sh.command_ "tee" [logFile] []
+
+
+buildTimingsWithGhc :: GhcSet -> Sh.Sh ()
+buildTimingsWithGhc = mapM_ go . unGhcSet
+  where go ghc = buildTimingsBy ["-w", ghc]

@@ -20,6 +20,8 @@ module GHC.Types
   , Version
   , URL
   , PackageSet(..)
+  , GhcFile
+  , GhcSet(..)
   , RebuildSet(..)
   , CompressedPackage(..)
   , PackageDirectory(..)
@@ -33,6 +35,7 @@ module GHC.Types
   , Library
   , mkCabalFile
   , mkMainFile
+  , mkGhcSet
   , workingDir
   , packageList
   , tarCache
@@ -47,6 +50,8 @@ import qualified Shelly    as Sh
 
 -- | Type synonyms for more descriptive types
 type Package      = T.Text
+type GhcFile      = T.Text   -- ^ A path to a file which lists paths to ghc versions
+type GhcPath      = T.Text   -- ^ a path to a version of ghc
 type ProjectCache = FilePath
 type Version      = T.Text
 type URL          = T.Text
@@ -74,6 +79,15 @@ mkMainFile = fmap (MainFile . toText) . Sh.canonicalize . toPath
 -- | a bunch of packages
 newtype PackageSet = PackageSet { unPackageSet :: [Package] }
 
+-- | a bunch of compilers
+
+newtype GhcSet = GhcSet { unGhcSet :: [GhcPath] }
+               deriving newtype Show
+
+
+mkGhcSet :: GhcFile -> Sh.Sh GhcSet
+mkGhcSet = fmap (GhcSet . T.lines) . Sh.readfile . toPath
+
 -- | packages that the user is requesting but are not in the cache
 newtype RebuildSet = RebuildSet { unRebuildSet :: [Package] }
                    deriving newtype (Semigroup, Monoid)
@@ -95,6 +109,7 @@ instance ToText CompressedPackage where toText = unCompressedPackage
 instance ToText PackageDirectory  where toText = unPackageDirectory
 instance ToText FilePath          where toText = Sh.toTextIgnore
 instance ToText RebuildSet        where toText = T.unlines . unRebuildSet
+instance ToText GhcSet            where toText = T.unlines . unGhcSet
 
 
 -- | Type Class to project a type to a file path
