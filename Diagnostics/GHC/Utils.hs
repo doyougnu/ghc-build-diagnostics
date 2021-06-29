@@ -1,3 +1,4 @@
+{-# LANGUAGE LambdaCase        #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module    : GHC.Utils
@@ -17,24 +18,26 @@
 
 module GHC.Utils where
 
-import qualified Data.Text          as T
-import qualified Shelly             as Sh
+import qualified Data.Text                              as T
+import qualified Shelly                                 as Sh
 
-import           System.FilePath    (takeBaseName)
-import           Data.Maybe         (isNothing)
-import           Data.List          ((\\))
--- import           Control.Monad      ((<=<))
+import           Control.Exception.Base                 (SomeException)
+import           Data.List                              ((\\))
+import           Data.Maybe                             (isNothing)
+import           System.FilePath                        (takeBaseName)
+import           Data.Functor                           ((<&>))
+
 -- import qualified Distribution.Package                    as P
-import qualified Distribution.PackageDescription         as PD
-import qualified Distribution.PackageDescription.Parsec  as Parse
-import Distribution.Verbosity (normal)
+import qualified Distribution.PackageDescription        as PD
+
+
 -- import Distribution.Types.UnqualComponentName (UnqualComponentName)
 -- import Distribution.Types.Dependency
 
 import           GHC.Types
 
 
-class Exists a where exists :: a -> Sh.Sh Bool
+class    Exists a                 where exists :: a -> Sh.Sh Bool
 instance Exists CompressedPackage where exists = exists    .
                                                  T.unpack  .
                                                  unCompressedPackage
@@ -54,7 +57,7 @@ toUrl (p,v) = hackage <> T.pack (p Sh.</> p)
 
 -- | decompress a package to a package directory
 expand :: CompressedPackage -> ProjectCache -> Sh.Sh ()
-expand (unCompressedPackage -> package) target =
+expand (unCompressedPackage -> package) (T.pack -> target) =
   do Sh.canonicalize (toPath package) >>= Sh.echo . ("Expanding: " <>) . T.pack
      Sh.canonicalize (toPath target)  >>= Sh.echo . ("To: "        <>) . T.pack
      Sh.run_ "tar" ["-xvf", package, "-C", target]
@@ -70,7 +73,7 @@ toCompressedPackage (T.unpack -> p) = CompressedPackage . T.pack $
                                       workingDir Sh.</> tarCache Sh.</> p Sh.<.> tarGz
 
 toPackageDirectory :: Package -> PackageDirectory
-toPackageDirectory p = PackageDirectory . toText $! workingDir Sh.</> cache Sh.</> p
+toPackageDirectory = PackageDirectory . toText . (cache Sh.</>)
 
 
 compressedToPackageDir :: CompressedPackage -> PackageDirectory
@@ -96,26 +99,22 @@ createWorkingDir :: Sh.Sh ()
 createWorkingDir = Sh.mkdir_p (T.unpack workingDir)
 
 
-findInProject :: PackageDirectory -> T.Text -> Sh.Sh T.Text
-findInProject (unPackageDirectory -> path) toFind =
-  Sh.command "find" [path, "-name", toFind] []
+findInProject :: PackageDirectory -> T.Text -> Sh.Sh (Maybe T.Text)
+findInProject (unPackageDirectory -> path) toFind = check <$> go
+  where go = Sh.command "find" [path, "-name", toFind] []
+        check b | b /= mempty = Just b
+                | otherwise   = Nothing
 
 
-findCabal :: PackageDirectory -> Sh.Sh CabalFile
-findCabal path = findInProject path "*.cabal" >>= mkCabalFile
+findProject :: Package -> Sh.Sh (Maybe PackageDirectory)
+findProject p = go <&> \case []    -> Nothing
+                             (x:_) -> Just $ PackageDirectory x
+  where go = T.lines <$>
+          Sh.command "find"
+          [toText cache, "-name", p <> "*", "-type", "d", "-maxdepth", "1"] []
 
 
-findMain :: PackageDirectory -> Sh.Sh (MainFile a)
-findMain p = findCabal p >>= go >>= findInProject p >>= mkMainFile
-  where go :: CabalFile -> Sh.Sh T.Text
-        go (T.strip . unCabalFile -> cbl) =
-          do desc <- Sh.liftIO $ Parse.readGenericPackageDescription normal (toPath cbl)
-             let mn = head $ getMainExe desc
-             return $ T.pack mn
-
-
-
-isLibrary :: PD.GenericPackageDescription -> Bool -- Maybe (PD.CondTree PD.ConfVar [P.Dependency] PD.Library)
+isLibrary :: PD.GenericPackageDescription -> Bool
 isLibrary = isNothing . PD.condLibrary
 
 
@@ -136,7 +135,15 @@ cabalGetPackages = mapM_ cabalGet . unRebuildSet
 
 
 cabalGet :: Package -> Sh.Sh ()
-cabalGet = Sh.command_ "cabal" ["get"] . pure
+cabalGet p = Sh.catch_sh go handle -- cabal will error if the directory already
+                                   -- exists we catch this error here to
+                                   -- continue processing the directory and auto
+                                   -- succeed if the directory exists
+  where
+    go :: Sh.Sh ()
+    go = Sh.command_ "cabal" ["get"] [p]
+    handle :: SomeException -> Sh.Sh()
+    handle _  = return ()
 
 
 cachedPackages :: Sh.Sh PackageSet
@@ -145,7 +152,6 @@ cachedPackages = PackageSet . fmap packageName <$> Sh.lsT cache
     packageName :: Package -> Package
     packageName = fst . T.breakOn dash . T.pack . takeBaseName . T.unpack
     dash        = "-" :: T.Text
-    cache       = toPath cache
 
 
 validatePackages :: PackageSet -> Sh.Sh RebuildSet
@@ -155,4 +161,9 @@ validatePackages (unPackageSet -> ps) =
 
 
 buildTimings :: Sh.Sh ()
-buildTimings = Sh.command "cabal" ["new-build", "--ghc-options=\"-ddump-timings -v2\"", "--allow-newer"] [] Sh.-|- return ()
+buildTimings = Sh.command "cabal" [ "new-build"
+                                  , "--allow-newer"
+                                  , "--ghc-option=-ddump-timings"
+                                  , "--ghc-option=-v2"
+                                  ] []
+               Sh.-|- Sh.command_ "tee" [logFile] []

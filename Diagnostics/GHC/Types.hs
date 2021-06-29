@@ -13,6 +13,7 @@
 {-# LANGUAGE DerivingStrategies #-}
 {-# LANGUAGE FlexibleInstances  #-}
 {-# LANGUAGE OverloadedStrings  #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 
 module GHC.Types
   ( Package
@@ -37,6 +38,7 @@ module GHC.Types
   , tarCache
   , cache
   , tarGz
+  , logFile
   ) where
 
 import qualified Data.Text as T
@@ -45,7 +47,7 @@ import qualified Shelly    as Sh
 
 -- | Type synonyms for more descriptive types
 type Package      = T.Text
-type ProjectCache = T.Text
+type ProjectCache = FilePath
 type Version      = T.Text
 type URL          = T.Text
 
@@ -74,6 +76,7 @@ newtype PackageSet = PackageSet { unPackageSet :: [Package] }
 
 -- | packages that the user is requesting but are not in the cache
 newtype RebuildSet = RebuildSet { unRebuildSet :: [Package] }
+                   deriving newtype (Semigroup, Monoid)
 
 -- | The compressed package from hackage
 newtype CompressedPackage = CompressedPackage { unCompressedPackage :: Package }
@@ -119,8 +122,12 @@ tarCache :: T.Text
 tarCache = "tarCache"
 
 
+logFile :: T.Text
+logFile = "timings.log"
+
+
 cache :: ProjectCache
-cache = T.pack $ workingDir Sh.</> ("cache" :: T.Text)
+cache = workingDir Sh.</> ("cache" :: T.Text)
 
 
 tarGz :: T.Text

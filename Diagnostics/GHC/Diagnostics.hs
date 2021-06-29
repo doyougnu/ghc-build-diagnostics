@@ -10,6 +10,7 @@
 -----------------------------------------------------------------------------
 
 -- {-# OPTIONS_GHC -Wall -Werror  #-}
+{-# LANGUAGE LambdaCase   #-}
 
 module GHC.Diagnostics where
 
@@ -49,8 +50,8 @@ module GHC.Diagnostics where
 -- import AsmCodeGen         ( nativeCodeGen )
 -- import UniqSupply         ( mkSplitUniqSupply, initUs_ )
 
--- import           Control.Monad          (void)
 import           Control.Monad.IO.Class (MonadIO, liftIO)
+import           Data.Text              (pack)
 import           System.Directory       (setCurrentDirectory)
 import           System.FilePath        (takeBaseName, takeDirectory)
 
@@ -60,18 +61,21 @@ import qualified Shelly                 as Sh
 import           GHC.Types
 import qualified GHC.Utils              as U
 
+
 diagnosePackage :: Package -> Sh.Sh ()
 diagnosePackage p =
-  do srcTarget <- toPath . unMainFile <$> packageEntryPoint p
-     let mainName = takeBaseName srcTarget
-         dirName  = takeDirectory srcTarget
-     liftIO $ setCurrentDirectory dirName
+  do current <- Sh.pwd
+     -- have we seen the package before?
+     U.findProject p >>= \case
+       Nothing -> do Sh.echo (pack "Package not in cache...Building")
+                     Sh.cd      cache
+                     U.cabalGet p
+       Just cached -> U.findInProject cached logFile >>= \case
+         -- does the cache have a timing file?
+         Nothing  -> do Sh.cd . toPath . unPackageDirectory $ cached
+                        U.buildTimings
+         Just log -> Sh.echo $ pack "Log already exists for package: " <> p <> pack "...skipping"
 
-     return ()
 
-
-packageEntryPoint :: Package -> Sh.Sh (MainFile Executable)
-packageEntryPoint p =
-  do let pname = U.toPackageDirectory p
-     P.unzipPackage $ U.toCompressedPackage p
-     U.findMain pname
+diagnosePackages :: PackageSet -> Sh.Sh ()
+diagnosePackages = mapM_ diagnosePackage . unPackageSet

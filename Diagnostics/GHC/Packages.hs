@@ -17,7 +17,7 @@
 module GHC.Packages
   ( retrievePackageList
   , retrieveAllPackagesBy
-  , retrievePackages
+  , buildCache
   , unzipPackage
   , findPackageProject
   ) where
@@ -54,13 +54,14 @@ retrieveAllPackagesBy by =
 
 
 -- | Download all the most recent versions of every package from hackage
-retrievePackages :: PackageSet -> Sh.Sh ()
-retrievePackages ps =
+buildCache :: PackageSet -> Sh.Sh ()
+buildCache ps =
   do Sh.echo "Checking cache"
+     Sh.mkdir_p cache
      rebuilds <- U.validatePackages ps
      if not $ empty rebuilds
        then do Sh.echo $ "Rebuilding: " <> "\n" <> toText rebuilds
-               Sh.cd (toPath cache)
+               Sh.cd cache
                U.cabalGetPackages rebuilds
        else Sh.echo "Everything was already cached!"
 
@@ -70,7 +71,7 @@ unzipPackage :: CompressedPackage -> Sh.Sh ()
 unzipPackage package =
   do Sh.whenM (not <$> U.exists cache) $
        Sh.echo "Initializing Project Cache" >>
-        Sh.mkdir_p (toPath cache)
+        Sh.mkdir_p cache
      U.expand package cache
 
 

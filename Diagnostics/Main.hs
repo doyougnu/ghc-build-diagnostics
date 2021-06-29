@@ -39,11 +39,11 @@ main = do
   let between before after go = do Sh.echo before
                                    void go
                                    Sh.echo after
-  Sh.shelly $ case mode of
+  Sh.shelly$ Sh.verbosely $ case mode of
     Clean         -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache ps -> U.createWorkingDir >>
-                     between "Building cache" "done" (P.retrievePackages ps)
-    Packages ps   -> D.diagnosePackage (head . unPackageSet $ ps)
+                     between "Building cache" "done" (P.buildCache ps)
+    Packages ps   -> D.diagnosePackage (head (unPackageSet ps))
 
 
 -- | parse the input package and options
