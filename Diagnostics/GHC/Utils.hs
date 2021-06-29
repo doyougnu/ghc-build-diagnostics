@@ -1,4 +1,3 @@
-{-# LANGUAGE LambdaCase        #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module    : GHC.Utils
@@ -11,8 +10,9 @@
 -- Shelly
 -----------------------------------------------------------------------------
 
-{-# OPTIONS_GHC -Wall -Werror  #-}
+-- {-# OPTIONS_GHC -Wall -Werror  #-}
 {-# LANGUAGE FlexibleInstances #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
 
@@ -20,6 +20,7 @@ module GHC.Utils where
 
 import qualified Data.Text                              as T
 import qualified Shelly                                 as Sh
+import qualified Text.Regex.TDFA                        as R
 
 import           Control.Exception.Base                 (SomeException)
 import           Data.List                              ((\\))
@@ -27,12 +28,8 @@ import           Data.Maybe                             (isNothing)
 import           System.FilePath                        (takeBaseName)
 import           Data.Functor                           ((<&>))
 
--- import qualified Distribution.Package                    as P
 import qualified Distribution.PackageDescription        as PD
 
-
--- import Distribution.Types.UnqualComponentName (UnqualComponentName)
--- import Distribution.Types.Dependency
 
 import           GHC.Types
 

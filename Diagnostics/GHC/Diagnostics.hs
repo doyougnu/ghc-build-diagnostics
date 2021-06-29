@@ -9,46 +9,11 @@
 -- Module for compiling a set of packages and tracking generating diagnostics
 -----------------------------------------------------------------------------
 
--- {-# OPTIONS_GHC -Wall -Werror  #-}
+{-# OPTIONS_GHC -Wall -Werror  #-}
 {-# LANGUAGE LambdaCase   #-}
 
 module GHC.Diagnostics where
 
--- Compiler
--- import           DriverPipeline
--- import           GHC
--- import           GHC.Driver.Session
--- import           GHC.CoreToStg
--- import           GHC.Paths              (libdir)
--- import           HscMain
--- import           HscTypes
--- import           GHC.Utils.Outputable
--- import           GHC.Plugins -- for ModGuts
-
--- Core Types
--- import Var
--- import Name
--- import Avail
--- import IdInfo
--- import Module
--- import Unique
--- import OccName
--- import InstEnv
--- import NameSet
--- import RdrName
--- import FamInstEnv
--- import qualified Stream
--- import qualified CoreSyn as Syn
-
--- Core Passes
--- import CorePrep           (corePrepPgm)
--- import           CoreToStg              (coreToStg)
--- import CmmInfo            (cmmToRawCmm )
--- import CmmLint            (cmmLint)
--- import CmmPipeline        (cmmPipeline)
--- import CmmBuildInfoTables (emptySRT)
--- import AsmCodeGen         ( nativeCodeGen )
--- import UniqSupply         ( mkSplitUniqSupply, initUs_ )
 
 import           Control.Monad.IO.Class (MonadIO, liftIO)
 import           Data.Text              (pack)
@@ -73,6 +38,7 @@ diagnosePackage p =
        Just cached -> U.findInProject cached logFile >>= \case
          -- does the cache have a timing file?
          Nothing  -> do Sh.cd . toPath . unPackageDirectory $ cached
+                        Sh.rm_rf "dist-newstyle"
                         U.buildTimings
          Just log -> Sh.echo $ pack "Log already exists for package: " <> p <> pack "...skipping"
 
