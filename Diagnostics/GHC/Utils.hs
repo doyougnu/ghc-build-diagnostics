@@ -191,11 +191,12 @@ buildTimings :: Sh.Sh ()
 buildTimings = buildTimingsBy mempty id
 
 ghcVersion :: Sh.Sh T.Text
-ghcVersion = Sh.command "ghc" ["--numeric-version"] []
+ghcVersion = T.strip <$> Sh.command "ghc" ["--numeric-version"] []
 
 buildTimingsWithGhc :: GhcSet -> Sh.Sh ()
 buildTimingsWithGhc (unGhcSet -> ghcs) =
   do version <- ghcVersion
-     let addVersion = (version <>)
+     Sh.echo version
+     let addVersion = ((version <> "-") <>)
          go ghc = buildTimingsBy ["-w", ghc] addVersion
      mapM_ go ghcs
