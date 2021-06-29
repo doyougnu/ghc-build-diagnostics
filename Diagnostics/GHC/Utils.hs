@@ -180,15 +180,22 @@ validatePackages (unPackageSet -> ps) =
      return . RebuildSet $ ps \\ cachedPs
 
 
-buildTimingsBy :: [T.Text] -> Sh.Sh ()
-buildTimingsBy args = cabalBuild args
-                      Sh.-|- Sh.command_ "tee" [logFile] []
+buildTimingsBy :: [T.Text]                  -- ^ Extra arguments
+               -> (T.Text -> T.Text)  -- ^ function to apply to the log file name
+               -> Sh.Sh ()
+buildTimingsBy args f = cabalBuild args
+                        Sh.-|- Sh.command_ "tee" [f logFile] []
 
 
 buildTimings :: Sh.Sh ()
-buildTimings = cabalBuild mempty Sh.-|- Sh.command_ "tee" [logFile] []
+buildTimings = buildTimingsBy mempty id
 
+ghcVersion :: Sh.Sh T.Text
+ghcVersion = Sh.command "ghc" ["--numeric-version"] []
 
 buildTimingsWithGhc :: GhcSet -> Sh.Sh ()
-buildTimingsWithGhc = mapM_ go . unGhcSet
-  where go ghc = buildTimingsBy ["-w", ghc]
+buildTimingsWithGhc (unGhcSet -> ghcs) =
+  do version <- ghcVersion
+     let addVersion = (version <>)
+         go ghc = buildTimingsBy ["-w", ghc] addVersion
+     mapM_ go ghcs

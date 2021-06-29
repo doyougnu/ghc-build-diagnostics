@@ -41,7 +41,7 @@ diagnosePackageBy timeIt p =
                                              , "1"
                                              ] >>= Sh.cd . takeFileName . toPath . stripEnd
                      timeIt
-       Just cached -> U.findInProject cached logFile >>= \case
+       Just cached -> U.findInProject cached ("*" <> logFile <> "*") >>= \case
          -- does the cache have a timing file?
          Nothing  -> do Sh.cd . toPath . unPackageDirectory $ cached
                         Sh.rm_rf "dist-newstyle"
