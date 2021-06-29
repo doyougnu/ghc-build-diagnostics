@@ -17,7 +17,7 @@
 module GHC.Packages
   ( retrievePackageList
   , retrieveAllPackagesBy
-  , retrieveRecentPackages
+  , retrievePackages
   , unzipPackage
   , findPackageProject
   ) where
@@ -27,7 +27,7 @@ import qualified Data.Text       as T
 import qualified Shelly          as Sh
 
 import           Control.Arrow   (second)
-import           Data.List.Extra (groupOn)
+
 
 import           GHC.Types
 import qualified GHC.Utils       as U
@@ -54,19 +54,24 @@ retrieveAllPackagesBy by =
 
 
 -- | Download all the most recent versions of every package from hackage
-retrieveRecentPackages :: Sh.Sh ()
-retrieveRecentPackages = Sh.whenM (not <$> U.exists packageList)
-                         $ retrieveAllPackagesBy (fmap last . groupOn fst)
+retrievePackages :: PackageSet -> Sh.Sh ()
+retrievePackages ps =
+  do Sh.echo "Checking cache"
+     rebuilds <- U.validatePackages ps
+     if not $ empty rebuilds
+       then do Sh.echo $ "Rebuilding: " <> "\n" <> toText rebuilds
+               Sh.cd (toPath cache)
+               U.cabalGetPackages rebuilds
+       else Sh.echo "Everything was already cached!"
 
 
 -- | uncompress a package downloaded from hackage
 unzipPackage :: CompressedPackage -> Sh.Sh ()
 unzipPackage package =
-  do Sh.whenM (not <$> U.exists pCache) $
+  do Sh.whenM (not <$> U.exists cache) $
        Sh.echo "Initializing Project Cache" >>
-        Sh.mkdir_p (toPath pCache)
-     U.expand package pCache
-  where pCache = toText $ workingDir Sh.</> projectCache
+        Sh.mkdir_p (toPath cache)
+     U.expand package cache
 
 
 findPackageProject :: Package -> Sh.Sh ()

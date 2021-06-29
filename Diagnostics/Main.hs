@@ -14,12 +14,12 @@
 
 module Main where
 
-import qualified Data.Semigroup      as Semi ((<>))
+
 import qualified Data.Text           as T
 import qualified Options.Applicative as O
 import qualified Shelly              as Sh
 
-import           Control.Applicative (some, (<|>))
+import           Control.Applicative (some)
 import           Control.Monad       (void)
 
 import qualified GHC.Packages        as P
@@ -28,10 +28,9 @@ import qualified GHC.Utils           as U
 import           GHC.Types
 
 -- | The mode the command line application is run in
-data Mode = Packages PackageSet -- ^ Analyze a set of packages, read from stdin
-          | RefreshPList        -- ^ Refresh the package list
-          | BuildCache          -- ^ Download all the packages from hackage
-          | Clean               -- ^ Delete the cache
+data Mode = Packages   PackageSet -- ^ Analyze a set of packages, read from stdin
+          | BuildCache PackageSet -- ^ Download all the packages from hackage
+          | Clean                 -- ^ Delete the cache
 
 
 main :: IO ()
@@ -40,33 +39,25 @@ main = do
   let between before after go = do Sh.echo before
                                    void go
                                    Sh.echo after
-  case mode of
-    RefreshPList -> Sh.shelly $ between "Refreshing package list" "all done" $
-                    P.retrievePackageList packageList
-    Clean        -> Sh.shelly $
-                    between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
-    BuildCache   -> Sh.shelly $ U.createWorkingDir >>
-                    between "Building cache" "done" P.retrieveRecentPackages
-    Packages ps  -> D.diagnosePackage (head . unPackageSet $ ps)
+  Sh.shelly $ case mode of
+    Clean         -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
+    BuildCache ps -> U.createWorkingDir >>
+                     between "Building cache" "done" (P.retrievePackages ps)
+    Packages ps   -> D.diagnosePackage (head . unPackageSet $ ps)
 
 
 -- | parse the input package and options
 parseInput :: O.Parser Mode
-parseInput = packageInput <|> refresh <|> clean <|> build
-  where packageInput = Packages . PackageSet <$>
-                       some (O.argument O.str (O.metavar "PACKAGE"))
+parseInput = O.subparser $ packageInput <> clean <> build
+  where packageInput = O.command "diagnose" $
+                       O.info
+                       (Packages . PackageSet <$> some (O.argument O.str (O.metavar "PACKAGE")))
+                       (O.progDesc "Build and diagnose the packages passed by stdin")
 
-        refresh = O.flag' RefreshPList ( O.long "update"
-                                         Semi.<> O.short 'u'
-                                         Semi.<> O.help "Update the list of cabal packages"
-                                       )
+        clean   = O.command "clean" $
+                  O.info (pure Clean)  (O.progDesc "Clean the package cache")
 
-        clean   = O.flag' Clean ( O.long "clean"
-                                  Semi.<> O.short 'c'
-                                  Semi.<> O.help "clean up the working directory"
-                                )
-
-        build   = O.flag' BuildCache ( O.long "build"
-                                       Semi.<> O.short 'b'
-                                       Semi.<> O.help "rebuild the entire package cache"
-                                     )
+        build   = O.command "cache" $
+                  O.info
+                  (BuildCache . PackageSet <$> some (O.argument O.str (O.metavar "PACKAGE")))
+                  (O.progDesc "Cache the packages on stdin")

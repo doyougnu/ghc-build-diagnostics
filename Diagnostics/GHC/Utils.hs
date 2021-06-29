@@ -22,6 +22,7 @@ import qualified Shelly             as Sh
 
 import           System.FilePath    (takeBaseName)
 import           Data.Maybe         (isNothing)
+import           Data.List          ((\\))
 -- import           Control.Monad      ((<=<))
 -- import qualified Distribution.Package                    as P
 import qualified Distribution.PackageDescription         as PD
@@ -69,7 +70,7 @@ toCompressedPackage (T.unpack -> p) = CompressedPackage . T.pack $
                                       workingDir Sh.</> tarCache Sh.</> p Sh.<.> tarGz
 
 toPackageDirectory :: Package -> PackageDirectory
-toPackageDirectory p = PackageDirectory . toText $! workingDir Sh.</> projectCache Sh.</> p
+toPackageDirectory p = PackageDirectory . toText $! workingDir Sh.</> cache Sh.</> p
 
 
 compressedToPackageDir :: CompressedPackage -> PackageDirectory
@@ -126,10 +127,32 @@ getMainExe :: PD.GenericPackageDescription -> [FilePath]
 getMainExe = fmap (PD.modulePath . PD.condTreeData . snd) . PD.condExecutables
 
 
--- getMainLib :: PD.GenericPackageDescription -> [FilePath]
--- getMainLib = maybe mempty go . PD.condLibrary
---   where go = PD.modulePath . PD.condTreeData
-
-
 getDependencies' :: PD.GenericPackageDescription -> [FilePath]
 getDependencies' = fmap (PD.modulePath . PD.condTreeData . snd) . PD.condExecutables
+
+
+cabalGetPackages :: RebuildSet -> Sh.Sh ()
+cabalGetPackages = mapM_ cabalGet . unRebuildSet
+
+
+cabalGet :: Package -> Sh.Sh ()
+cabalGet = Sh.command_ "cabal" ["get"] . pure
+
+
+cachedPackages :: Sh.Sh PackageSet
+cachedPackages = PackageSet . fmap packageName <$> Sh.lsT cache
+  where
+    packageName :: Package -> Package
+    packageName = fst . T.breakOn dash . T.pack . takeBaseName . T.unpack
+    dash        = "-" :: T.Text
+    cache       = toPath cache
+
+
+validatePackages :: PackageSet -> Sh.Sh RebuildSet
+validatePackages (unPackageSet -> ps) =
+  do cachedPs <- unPackageSet <$> cachedPackages
+     return . RebuildSet $ ps \\ cachedPs
+
+
+buildTimings :: Sh.Sh ()
+buildTimings = Sh.command "cabal" ["new-build", "--ghc-options=\"-ddump-timings -v2\"", "--allow-newer"] [] Sh.-|- return ()

@@ -19,11 +19,13 @@ module GHC.Types
   , Version
   , URL
   , PackageSet(..)
+  , RebuildSet(..)
   , CompressedPackage(..)
   , PackageDirectory(..)
   , ProjectCache
   , ToText(..)
   , ToPath(..)
+  , Empty(..)
   , CabalFile(..)
   , MainFile(..)
   , Executable
@@ -33,7 +35,7 @@ module GHC.Types
   , workingDir
   , packageList
   , tarCache
-  , projectCache
+  , cache
   , tarGz
   ) where
 
@@ -70,6 +72,8 @@ mkMainFile = fmap (MainFile . toText) . Sh.canonicalize . toPath
 -- | a bunch of packages
 newtype PackageSet = PackageSet { unPackageSet :: [Package] }
 
+-- | packages that the user is requesting but are not in the cache
+newtype RebuildSet = RebuildSet { unRebuildSet :: [Package] }
 
 -- | The compressed package from hackage
 newtype CompressedPackage = CompressedPackage { unCompressedPackage :: Package }
@@ -87,6 +91,7 @@ class    ToText a where toText :: a -> T.Text
 instance ToText CompressedPackage where toText = unCompressedPackage
 instance ToText PackageDirectory  where toText = unPackageDirectory
 instance ToText FilePath          where toText = Sh.toTextIgnore
+instance ToText RebuildSet        where toText = T.unlines . unRebuildSet
 
 
 -- | Type Class to project a type to a file path
@@ -95,6 +100,8 @@ instance ToPath T.Text where toPath = Sh.fromText
 instance ToPath CompressedPackage where toPath = toPath . toText
 instance ToPath PackageDirectory  where toPath = toPath . toText
 
+class    Empty a          where empty :: a -> Bool
+instance Empty RebuildSet where empty = null . unRebuildSet
 
 -- | constant for directory to hold packages
 workingDir :: T.Text
@@ -112,8 +119,8 @@ tarCache :: T.Text
 tarCache = "tarCache"
 
 
-projectCache :: T.Text
-projectCache = "projectCache"
+cache :: ProjectCache
+cache = T.pack $ workingDir Sh.</> ("cache" :: T.Text)
 
 
 tarGz :: T.Text
