@@ -35,7 +35,6 @@ import qualified GHC.Utils                  as U
 
 type Parser = Parsec Void T.Text
 
--- timingsToCsv :: ToPath a => a -> IO [Either (ParseErrorBundle T.Text Void) Row]
 timingsToCsv :: ToPath a => a -> IO [Row]
 timingsToCsv file = do contents <- readFile . toPath $ file
                        let
@@ -43,10 +42,6 @@ timingsToCsv file = do contents <- readFile . toPath $ file
                          ls = T.lines contents
                        return $ rights $ fmap (parse row mempty) ls
 
-
-  -- fmap (fmap (parse row mempty) . T.lines) . readFile . toPath
-
-          -- between sc eof (row <|>  `sepEndBy` C.newline)
 
 sc :: Parser ()
 sc = L.space C.space1 empty empty
