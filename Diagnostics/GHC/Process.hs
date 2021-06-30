@@ -13,7 +13,7 @@
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE RecordWildCards   #-}
 
-
+module GHC.Process where
 
 import           Text.Megaparsec
 import qualified Text.Megaparsec.Char       as C
@@ -22,12 +22,13 @@ import qualified Data.Csv                   as CSV
 import qualified Data.Text                  as T
 
 import           Control.Monad              (void,msum)
+import           Data.ByteString.Lazy       (writeFile)
 import           Data.Either                (rights)
 import           Data.Functor               (($>))
 import           Data.Text.IO               (readFile)
 import           Data.Void                  (Void)
 import           GHC.Generics               (Generic)
-import           Prelude                    hiding (readFile, unwords,lines)
+import           Prelude                    hiding (readFile, unwords, lines, writeFile)
 
 import           GHC.Types                  hiding (empty)
 import qualified GHC.Utils                  as U
@@ -35,12 +36,11 @@ import qualified GHC.Utils                  as U
 
 type Parser = Parsec Void T.Text
 
-timingsToCsv :: ToPath a => a -> IO [Row]
-timingsToCsv file = do contents <- readFile . toPath $ file
-                       let
-                         ls :: [T.Text]
-                         ls = T.lines contents
-                       return $ rights $ fmap (parse row mempty) ls
+timingsToCsv :: (ToPath in_, ToPath out_) => in_ -> out_ -> IO ()
+timingsToCsv in_ out_ = do contents <- readFile . toPath $ in_
+                           let ls   = T.lines contents
+                               rows = rights $ fmap (parse row mempty) ls
+                           writeFile (toPath out_) (CSV.encode rows)
 
 
 sc :: Parser ()
@@ -99,6 +99,7 @@ data Row = Row { _phase  :: !T.Text
                } deriving (Generic, Show)
 
 
+instance CSV.ToRecord       Row
 instance CSV.ToNamedRecord  Row
 instance CSV.DefaultOrdered Row
 

@@ -27,7 +27,7 @@ import           GHC.Types
 import qualified GHC.Utils       as U
 
 
-diagnosePackageBy :: Sh.Sh () -> Package -> Sh.Sh ()
+diagnosePackageBy :: Sh.Sh LogFile -> Package -> Sh.Sh LogFile
 diagnosePackageBy timeIt p =
   do -- have we seen the package before?
      U.findProject p >>= \case
@@ -46,14 +46,15 @@ diagnosePackageBy timeIt p =
          Nothing  -> do Sh.cd . toPath . unPackageDirectory $ cached
                         Sh.rm_rf "dist-newstyle"
                         timeIt
-         Just _   -> Sh.echo $ pack "Log already exists for package: " <> p <> pack "...skipping build"
+         Just _   -> do Sh.echo $ pack "Log already exists for package: " <> p <> pack "...skipping build"
+                        U.mkLogFile
 
 
 diagnosePackage :: Package -> Sh.Sh ()
 diagnosePackage = diagnosePackageBy U.buildTimings
 
 
-diagnosePackageWithGhcs :: GhcSet -> Package -> Sh.Sh ()
+diagnosePackageWithGhcs :: GhcSet -> Package -> Sh.Sh LogFile
 diagnosePackageWithGhcs = diagnosePackageBy .  U.buildTimingsWithGhc
 
 

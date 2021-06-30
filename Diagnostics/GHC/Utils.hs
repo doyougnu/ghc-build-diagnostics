@@ -158,17 +158,17 @@ cabalGet p = Sh.catch_sh go handle -- cabal will error if the directory already
     handle :: SomeException -> Sh.Sh()
     handle _  = return ()
 
-cabalBuild :: (T.Text -> T.Text) -> [T.Text] -> Sh.Sh T.Text
-cabalBuild f = Sh.escaping False .
-               Sh.command "cabal" [ "new-build"
-                                  , "--allow-newer"
-                                  , "--ghc-option=-ddump-timings"
-                                  , "--ghc-option=-v2"
-                                  , "2>&1" -- to capture symbols sent to stderr
-                                  , "|"
-                                  , "tee"
-                                  , f logFile
-                                  ]
+cabalBuild :: LogFile -> [T.Text] -> Sh.Sh ()
+cabalBuild lf = Sh.escaping False .
+                Sh.command_ "cabal" [ "new-build"
+                                    , "--allow-newer"
+                                    , "--ghc-option=-ddump-timings"
+                                    , "--ghc-option=-v2"
+                                    , "2>&1" -- to capture symbols sent to stderr
+                                    , "|"
+                                    , "tee"
+                                    , lf
+                                    ]
 
 
 cachedPackages :: Sh.Sh PackageSet
@@ -185,19 +185,19 @@ validatePackages (unPackageSet -> ps) =
      return . RebuildSet $ ps \\ cachedPs
 
 
-buildTimingsBy :: [T.Text]            -- ^ Extra arguments
-               -> (T.Text -> T.Text)  -- ^ function to apply to the log file name
-               -> Sh.Sh T.Text
-buildTimingsBy args f = -- Sh.escaping False $
-                        cabalBuild f args
-                        -- Sh.-|- Sh.command_ "tee" [f logFile] []
+buildTimingsBy :: [T.Text] -- ^ Extra arguments
+               -> LogFile  -- ^ the log file name
+               -> Sh.Sh ()
+buildTimingsBy = flip cabalBuild
 
+mkLogFile :: Sh.Sh T.Text
+mkLogFile = (\version -> version <> "-" <> logFile) <$> ghcVersion
+
+mkTimingFile :: Sh.Sh T.Text
+mkTimingFile = (\version -> version <> "-" <> timingFile) <$> ghcVersion
 
 buildTimings :: Sh.Sh ()
-buildTimings = do version <- ghcVersion
-                  let addVersion = ((version <> "-") <>)
-                  _ <- buildTimingsBy mempty addVersion
-                  return ()
+buildTimings = mkLogFile >>= buildTimingsBy mempty
 
 
 ghcVersion :: Sh.Sh T.Text
@@ -206,7 +206,6 @@ ghcVersion = T.strip <$> Sh.command "ghc" ["--numeric-version"] []
 
 buildTimingsWithGhc :: GhcSet -> Sh.Sh ()
 buildTimingsWithGhc (unGhcSet -> ghcs) =
-  do version <- ghcVersion
-     let addVersion = ((version <> "-") <>)
-         go ghc = buildTimingsBy ["-w", ghc] addVersion
-     mapM_ go ghcs
+  do lfs <- mkLogFiles ghcs
+     let go ghc lf = buildTimingsBy ["-w", ghc] lf
+     mapM_ (()go) ghcs

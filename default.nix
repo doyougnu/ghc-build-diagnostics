@@ -1,6 +1,6 @@
 { mkDerivation, base, optparse-applicative, shelly, stdenv,
   text, filepath, extra, ghc, ghc-paths, wget, gnutar, Cabal,
-  directory, cassava, megaparsec
+  directory, cassava, megaparsec, bytestring
 }:
 mkDerivation {
   pname = "ghc-build-diagnostics";

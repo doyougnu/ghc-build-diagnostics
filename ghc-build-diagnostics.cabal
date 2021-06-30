@@ -25,6 +25,7 @@ executable ghc-build-diagnostics
                      , GHC.Packages
                      , GHC.Diagnostics
   build-depends:       base >=4.14
+                     , bytestring
                      , Cabal
                      , cassava
                      , directory

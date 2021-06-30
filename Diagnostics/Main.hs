@@ -23,6 +23,7 @@ import           Control.Applicative (some)
 import           Control.Monad       (void)
 
 import qualified GHC.Packages        as P
+import qualified GHC.Process         as Prc
 import qualified GHC.Diagnostics     as D
 import qualified GHC.Utils           as U
 import           GHC.Types
@@ -44,7 +45,10 @@ main = do
     BuildCache ps  -> U.cacheExistsOrMake >>
                       between "Building cache" "done" (P.buildCache ps)
     Packages ps gs -> case gs of
-      Nothing      -> U.cacheExistsOrMake >> D.diagnosePackages ps
+      Nothing      -> do U.cacheExistsOrMake
+                         lf <- D.diagnosePackages ps
+                         tf <- U.mkTimingFile
+                         Sh.liftIO $ Prc.timingsToCsv lf tf
       Just ghcFile -> do ghcs <- mkGhcSet ghcFile
                          _ <- U.cacheExistsOrMake
                          D.diagnosePackagesWithGhcs ps ghcs

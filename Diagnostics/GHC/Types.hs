@@ -18,6 +18,7 @@
 module GHC.Types
   ( Package
   , Version
+  , LogFile
   , URL
   , PackageSet(..)
   , GhcFile
@@ -42,6 +43,7 @@ module GHC.Types
   , cache
   , tarGz
   , logFile
+  , timingFile
   ) where
 
 import qualified Data.Text as T
@@ -52,6 +54,7 @@ import qualified Shelly    as Sh
 type Package      = T.Text
 type GhcFile      = T.Text   -- ^ A path to a file which lists paths to ghc versions
 type GhcPath      = T.Text   -- ^ a path to a version of ghc
+type LogFile      = T.Text
 type ProjectCache = FilePath
 type Version      = T.Text
 type URL          = T.Text
@@ -140,6 +143,8 @@ tarCache = "tarCache"
 logFile :: T.Text
 logFile = "timings.log"
 
+timingFile :: T.Text
+timingFile = "timings.csv"
 
 cache :: ProjectCache
 cache = workingDir Sh.</> ("cache" :: T.Text)
