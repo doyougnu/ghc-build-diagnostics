@@ -158,12 +158,17 @@ cabalGet p = Sh.catch_sh go handle -- cabal will error if the directory already
     handle :: SomeException -> Sh.Sh()
     handle _  = return ()
 
-cabalBuild :: [T.Text] -> Sh.Sh T.Text
-cabalBuild = Sh.command "cabal" [ "new-build"
-                                , "--allow-newer"
-                                , "--ghc-option=-ddump-timings"
-                                , "--ghc-option=-v2"
-                                ]
+cabalBuild :: (T.Text -> T.Text) -> [T.Text] -> Sh.Sh T.Text
+cabalBuild f = Sh.escaping False .
+               Sh.command "cabal" [ "new-build"
+                                  , "--allow-newer"
+                                  , "--ghc-option=-ddump-timings"
+                                  , "--ghc-option=-v2"
+                                  , "2>&1" -- to capture symbols sent to stderr
+                                  , "|"
+                                  , "tee"
+                                  , f logFile
+                                  ]
 
 
 cachedPackages :: Sh.Sh PackageSet
@@ -182,18 +187,22 @@ validatePackages (unPackageSet -> ps) =
 
 buildTimingsBy :: [T.Text]            -- ^ Extra arguments
                -> (T.Text -> T.Text)  -- ^ function to apply to the log file name
-               -> Sh.Sh ()
-buildTimingsBy args f = cabalBuild args
-                        Sh.-|- Sh.command_ "tee" [f logFile] []
+               -> Sh.Sh T.Text
+buildTimingsBy args f = -- Sh.escaping False $
+                        cabalBuild f args
+                        -- Sh.-|- Sh.command_ "tee" [f logFile] []
 
 
 buildTimings :: Sh.Sh ()
 buildTimings = do version <- ghcVersion
                   let addVersion = ((version <> "-") <>)
-                  buildTimingsBy mempty addVersion
+                  _ <- buildTimingsBy mempty addVersion
+                  return ()
+
 
 ghcVersion :: Sh.Sh T.Text
 ghcVersion = T.strip <$> Sh.command "ghc" ["--numeric-version"] []
+
 
 buildTimingsWithGhc :: GhcSet -> Sh.Sh ()
 buildTimingsWithGhc (unGhcSet -> ghcs) =

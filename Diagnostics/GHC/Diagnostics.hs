@@ -46,7 +46,7 @@ diagnosePackageBy timeIt p =
          Nothing  -> do Sh.cd . toPath . unPackageDirectory $ cached
                         Sh.rm_rf "dist-newstyle"
                         timeIt
-         Just _   -> Sh.echo $ pack "Log already exists for package: " <> p <> pack "...skipping"
+         Just _   -> Sh.echo $ pack "Log already exists for package: " <> p <> pack "...skipping build"
 
 
 diagnosePackage :: Package -> Sh.Sh ()
