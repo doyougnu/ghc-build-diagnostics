@@ -40,7 +40,7 @@ timingsToCsv :: (ToPath in_, ToPath out_) => in_ -> out_ -> IO ()
 timingsToCsv in_ out_ = do contents <- readFile . toPath $ in_
                            let ls   = T.lines contents
                                rows = rights $ fmap (parse row mempty) ls
-                           writeFile (toPath out_) (CSV.encode rows)
+                           writeFile (toPath out_) (CSV.encodeDefaultOrderedByName rows)
 
 
 sc :: Parser ()
@@ -97,6 +97,9 @@ data Row = Row { _phase  :: !T.Text
                , _time   :: !Float
                , _alloc  :: !Float
                } deriving (Generic, Show)
+
+csvHeader :: CSV.Header
+csvHeader = CSV.header ["Phase", "Module", "Time", "Allocations"]
 
 
 instance CSV.ToRecord       Row
