@@ -161,7 +161,7 @@ cabalGet p = Sh.catch_sh go handle -- cabal will error if the directory already
     handle _  = return ()
 
 cabalBuild :: LogFile -> [T.Text] -> Sh.Sh ()
-cabalBuild lf extras = Sh.catch_sh go handle
+cabalBuild (toText -> lf) extras = Sh.catch_sh go handle
   where go = Sh.escaping False $ Sh.command_ "cabal"
              ([ "new-build"
               , "--allow-newer"
@@ -222,11 +222,11 @@ buildTimingsWithGhc ghc = mkLogFileBy (ghcVersionWithGhc ghc) >>=
                           buildTimingsBy ["-w", unGhcPath ghc]
 
 
-mkLogFileBy :: Sh.Sh T.Text -> Sh.Sh T.Text
-mkLogFileBy getVersion = (\version -> version <> "-" <> logFile) <$> getVersion
+mkLogFileBy :: Sh.Sh T.Text -> Sh.Sh LogFile
+mkLogFileBy = fmap (\version -> LogFile $ version <> "-" <> logFile)
 
 
-mkLogFile :: Sh.Sh T.Text
+mkLogFile :: Sh.Sh LogFile
 mkLogFile = mkLogFileBy ghcVersion
 
 

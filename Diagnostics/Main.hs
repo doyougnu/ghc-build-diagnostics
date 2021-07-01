@@ -50,8 +50,8 @@ main = do
                                tf   <- U.mkTimingFile
                                lf   <- U.mkLogFile
                                mkGhcPath ghcPath' >>= \case
-                                 Nothing      -> D.diagnosePackages        ps tf lf
-                                 Just ghcPath -> D.diagnosePackagesWithGhc ps tf lf ghcPath
+                                 Nothing      -> D.diagnosePackages        ps lf tf
+                                 Just ghcPath -> D.diagnosePackagesWithGhc ps lf tf ghcPath
 
 
 -- | parse the input package and options

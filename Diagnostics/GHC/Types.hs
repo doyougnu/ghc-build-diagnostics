@@ -18,9 +18,9 @@
 module GHC.Types
   ( Package
   , Version
-  , LogFile
-  , TimingsFile
   , URL
+  , LogFile(..)
+  , TimingsFile(..)
   , GhcPath(..)
   , PackageSet(..)
   , RebuildSet(..)
@@ -52,8 +52,6 @@ import qualified Shelly    as Sh
 
 -- | Type synonyms for more descriptive types
 type Package      = T.Text
-type LogFile      = T.Text
-type TimingsFile  = T.Text
 type ProjectCache = FilePath
 type Version      = T.Text
 type URL          = T.Text
@@ -63,6 +61,12 @@ newtype GhcPath = GhcPath { unGhcPath :: T.Text }
 
 newtype CabalFile = CabalFile { unCabalFile :: T.Text }
                   deriving stock Show
+
+newtype LogFile = LogFile { unLogFile :: T.Text }
+                  deriving newtype Show
+
+newtype TimingsFile = TimingsFile { unTimingsFile :: T.Text }
+                  deriving newtype Show
 
 mkGhcPath :: Maybe T.Text -> Sh.Sh (Maybe GhcPath)
 mkGhcPath Nothing    = return Nothing
@@ -115,6 +119,8 @@ instance ToText PackageDirectory  where toText = unPackageDirectory
 instance ToText FilePath          where toText = Sh.toTextIgnore
 instance ToText RebuildSet        where toText = T.unlines . unRebuildSet
 instance ToText PackageSet        where toText = T.unlines . unPackageSet
+instance ToText LogFile           where toText = unLogFile
+instance ToText TimingsFile       where toText = unTimingsFile
 
 
 -- | Type Class to project a type to a file path
@@ -122,6 +128,8 @@ class    ToPath a      where toPath :: a -> FilePath
 instance ToPath T.Text where toPath = Sh.fromText
 instance ToPath CompressedPackage where toPath = toPath . toText
 instance ToPath PackageDirectory  where toPath = toPath . toText
+instance ToPath LogFile           where toPath = toPath . toText
+instance ToPath TimingsFile       where toPath = toPath . toText
 
 class    Empty a          where empty :: a -> Bool
 instance Empty RebuildSet where empty = null . unRebuildSet
