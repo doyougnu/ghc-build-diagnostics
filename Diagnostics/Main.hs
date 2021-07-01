@@ -49,12 +49,13 @@ main = do
       Nothing      -> do U.cacheExistsOrMake
                          Sh.echo "in nothing"
                          D.diagnosePackages ps
-                         tf <- U.mkTimingFile
-                         lf <- U.mkLogFile
-                         Sh.liftIO $ Prc.timingsToCsv lf tf
+                         tf   <- U.mkTimingFile
+                         lf   <- U.mkLogFile
+                         curr <- Sh.pwd
+                         Sh.liftIO $ Prc.timingsToCsv (toText $ curr Sh.</> lf) (toText $ curr Sh.</> tf)
       Just ghcPath -> do _ <- U.cacheExistsOrMake
                          Sh.echo "in just"
-                         D.diagnosePackagesWithGhcs ps ghcPath
+                         D.diagnosePackagesWithGhc ps ghcPath
 
 
 -- | parse the input package and options

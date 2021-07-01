@@ -64,7 +64,7 @@ diagnosePackages (unPackageSet -> ps) =
      mapM_ (\p -> Sh.cd rootDir >> diagnosePackage p) ps
 
 
-diagnosePackagesWithGhcs :: PackageSet -> GhcPath -> Sh.Sh ()
-diagnosePackagesWithGhcs (unPackageSet -> ps) gs =
+diagnosePackagesWithGhc :: PackageSet -> GhcPath -> Sh.Sh ()
+diagnosePackagesWithGhc (unPackageSet -> ps) gs =
   do rootDir <- Sh.pwd
      mapM_ (\p -> Sh.cd rootDir >> diagnosePackageWithGhc gs p) ps

@@ -105,12 +105,12 @@ cacheExistsOrMake = createWorkingDir >> createCache
 
 
 -- | low level wrapper around find
-findIn :: T.Text -- ^ Where to look
-       -> T.Text -- ^ thing to find
+findIn :: T.Text   -- ^ Where to look
+       -> T.Text   -- ^ thing to find
        -> [T.Text] -- ^ Extra commands
        -> Sh.Sh T.Text
-findIn here thing = go
-  where go = Sh.command "find" [here, "-name", thing]
+findIn there thing = go
+  where go = Sh.command "find" [there, "-name", thing]
 
 
 findInProject :: PackageDirectory -> T.Text -> Sh.Sh (Maybe T.Text)
