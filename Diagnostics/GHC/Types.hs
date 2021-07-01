@@ -62,12 +62,13 @@ newtype GhcPath = GhcPath { unGhcPath :: T.Text }
 newtype CabalFile = CabalFile { unCabalFile :: T.Text }
                   deriving stock Show
 
-mkGhcPath :: T.Text -> Sh.Sh (Maybe GhcPath)
-mkGhcPath ghc = do version <- T.strip <$> Sh.command (toPath ghc) ["--numeric-version"] []
-                   return $
-                     if version == mempty
-                     then Nothing
-                     else Just $! GhcPath ghc
+mkGhcPath :: Maybe T.Text -> Sh.Sh (Maybe GhcPath)
+mkGhcPath Nothing    = return Nothing
+mkGhcPath (Just ghc) = do version <- T.strip <$> Sh.command (toPath ghc) ["--numeric-version"] []
+                          return $
+                            if version == mempty
+                            then Nothing
+                            else Just $! GhcPath ghc
 
 mkCabalFile :: T.Text -> Sh.Sh CabalFile
 mkCabalFile = fmap (CabalFile . toText) . Sh.canonicalize . toPath

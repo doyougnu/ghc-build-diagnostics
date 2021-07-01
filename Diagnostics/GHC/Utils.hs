@@ -192,6 +192,15 @@ buildTimingsBy :: [T.Text] -- ^ Extra arguments
 buildTimingsBy = flip cabalBuild
 
 
+buildTimings :: Sh.Sh ()
+buildTimings = mkLogFileBy ghcVersion >>= buildTimingsBy mempty
+
+
+buildTimingsWithGhc :: GhcPath -> Sh.Sh ()
+buildTimingsWithGhc ghc = mkLogFileBy (ghcVersionWithGhc ghc) >>=
+                          buildTimingsBy ["-w", unGhcPath ghc]
+
+
 mkLogFileBy :: Sh.Sh T.Text -> Sh.Sh T.Text
 mkLogFileBy getVersion = (\version -> version <> "-" <> logFile) <$> getVersion
 
@@ -211,12 +220,3 @@ ghcVersionWithGhc (T.unpack . unGhcPath -> ghc) =
 
 mkTimingFile :: Sh.Sh T.Text
 mkTimingFile = (\version -> version <> "-" <> timingFile) <$> ghcVersion
-
-
-buildTimings :: Sh.Sh ()
-buildTimings = mkLogFileBy ghcVersion >>= buildTimingsBy mempty
-
-
-buildTimingsWithGhc :: GhcPath -> Sh.Sh ()
-buildTimingsWithGhc ghc = mkLogFileBy (ghcVersionWithGhc ghc) >>=
-                          buildTimingsBy ["-w", unGhcPath ghc]

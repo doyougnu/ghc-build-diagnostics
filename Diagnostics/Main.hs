@@ -22,7 +22,6 @@ import qualified Shelly              as Sh
 
 import           Control.Applicative (some)
 import           Control.Monad       (void)
-import           Data.Maybe          (fromMaybe)
 
 import qualified GHC.Packages        as P
 import qualified GHC.Process         as Prc
@@ -46,13 +45,15 @@ main = do
     Clean          -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache ps  -> U.cacheExistsOrMake >>
                       between "Building cache" "done" (P.buildCache ps)
-    Packages ps ghcPath' -> (mkGhcPath $ mempty `fromMaybe` ghcPath') >>= \case
+    Packages ps ghcPath' -> mkGhcPath ghcPath' >>= \case
       Nothing      -> do U.cacheExistsOrMake
+                         Sh.echo "in nothing"
                          D.diagnosePackages ps
                          tf <- U.mkTimingFile
                          lf <- U.mkLogFile
                          Sh.liftIO $ Prc.timingsToCsv lf tf
       Just ghcPath -> do _ <- U.cacheExistsOrMake
+                         Sh.echo "in just"
                          D.diagnosePackagesWithGhcs ps ghcPath
 
 

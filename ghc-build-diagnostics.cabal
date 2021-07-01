@@ -23,6 +23,7 @@ executable ghc-build-diagnostics
   other-modules:       GHC.Types
                      , GHC.Utils
                      , GHC.Packages
+                     , GHC.Process
                      , GHC.Diagnostics
   build-depends:       base >=4.14
                      , bytestring
