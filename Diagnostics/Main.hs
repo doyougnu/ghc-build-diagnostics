@@ -45,7 +45,7 @@ main = do
     Clean          -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache ps  -> U.cacheExistsOrMake >>
                       between "Building cache" "done" (P.buildCache ps)
-    Packages ps ghcPath' -> do Sh.echo $ "Diagnosing: " <> (toText ps)
+    Packages ps ghcPath' -> do Sh.echo $ "Diagnosing: \n" <> (toText ps)
                                _    <- U.cacheExistsOrMake
                                tf   <- U.mkTimingFile
                                lf   <- U.mkLogFile

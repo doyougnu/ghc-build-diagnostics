@@ -24,9 +24,8 @@ import qualified Shelly                                 as Sh
 import           Control.Exception.Base                 (SomeException)
 import           Data.List                              ((\\))
 import           Data.Maybe                             (isNothing)
-import           System.FilePath                        (takeBaseName)
+import           System.FilePath                        (takeBaseName,takeFileName)
 import           Data.Functor                           ((<&>))
-import           System.FilePath (takeFileName)
 
 import qualified Distribution.PackageDescription        as PD
 

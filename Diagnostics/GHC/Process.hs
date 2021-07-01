@@ -1,3 +1,4 @@
+{-# LANGUAGE ViewPatterns #-}
 -----------------------------------------------------------------------------
 -- |
 -- Module    : GHC.Process
@@ -20,9 +21,11 @@ import qualified Text.Megaparsec.Char       as C
 import qualified Text.Megaparsec.Char.Lexer as L
 import qualified Data.Csv                   as CSV
 import qualified Data.Text                  as T
+import qualified Data.Text.Encoding         as TE
+import qualified Shelly                     as Sh
 
 import           Control.Monad              (void,msum)
-import           Data.ByteString.Lazy       (writeFile)
+import           Data.ByteString.Lazy       (toStrict)
 import           Data.Either                (rights)
 import           Data.Functor               (($>))
 import           Data.Text.IO               (readFile)
@@ -36,11 +39,12 @@ import qualified GHC.Utils                  as U
 
 type Parser = Parsec Void T.Text
 
-timingsToCsv :: (ToPath in_, ToPath out_) => in_ -> out_ -> IO ()
-timingsToCsv in_ out_ = do contents <- readFile . toPath $ in_
-                           let ls   = T.lines contents
-                               rows = rights $ fmap (parse row mempty) ls
-                           writeFile (toPath out_) (CSV.encodeDefaultOrderedByName rows)
+timingsToCsv :: (ToPath in_, ToPath out_) => in_ -> out_ -> Sh.Sh ()
+timingsToCsv (toPath -> in_) (toPath -> out_) =
+  do contents <- Sh.readfile in_
+     let ls   = T.lines contents
+         rows = rights $ fmap (parse row mempty) ls
+     Sh.writefile out_ (TE.decodeUtf8 . toStrict $ CSV.encodeDefaultOrderedByName rows)
 
 
 sc :: Parser ()
