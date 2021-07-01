@@ -239,5 +239,5 @@ ghcVersionWithGhc (T.unpack . unGhcPath -> ghc) =
   T.strip <$> Sh.command ghc ["--numeric-version"] []
 
 
-mkTimingFile :: Sh.Sh T.Text
-mkTimingFile = (\version -> version <> "-" <> timingFile) <$> ghcVersion
+mkTimingFile :: Sh.Sh TimingsFile
+mkTimingFile = (\version -> TimingsFile $ version <> "-" <> timingFile) <$> ghcVersion
