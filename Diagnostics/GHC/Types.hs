@@ -19,6 +19,7 @@ module GHC.Types
   ( Package
   , Version
   , LogFile
+  , TimingsFile
   , URL
   , GhcPath(..)
   , PackageSet(..)
@@ -52,6 +53,7 @@ import qualified Shelly    as Sh
 -- | Type synonyms for more descriptive types
 type Package      = T.Text
 type LogFile      = T.Text
+type TimingsFile  = T.Text
 type ProjectCache = FilePath
 type Version      = T.Text
 type URL          = T.Text
@@ -112,6 +114,7 @@ instance ToText CompressedPackage where toText = unCompressedPackage
 instance ToText PackageDirectory  where toText = unPackageDirectory
 instance ToText FilePath          where toText = Sh.toTextIgnore
 instance ToText RebuildSet        where toText = T.unlines . unRebuildSet
+instance ToText PackageSet        where toText = T.unlines . unPackageSet
 
 
 -- | Type Class to project a type to a file path

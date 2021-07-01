@@ -18,53 +18,35 @@ module GHC.Diagnostics where
 
 
 
-import           Data.Text       (pack,stripEnd)
-import           System.FilePath (takeFileName)
+
 
 import qualified Shelly          as Sh
 
 import           GHC.Types
 import qualified GHC.Utils       as U
+import qualified GHC.Process     as P
 
 
-diagnosePackageBy :: Sh.Sh () -> Package -> Sh.Sh ()
-diagnosePackageBy timeIt p =
-  do -- have we seen the package before?
-     U.findProject p >>= \case
-       Nothing -> do Sh.echo (pack "Package not in cache...Building")
-                     Sh.cd cache
-                     U.cabalGet p
-                     -- find the new directory and enter it
-                     U.findIn "." (p <> "*") [ "-type"
-                                             , "d"
-                                             , "-maxdepth"
-                                             , "1"
-                                             ] >>= Sh.cd . takeFileName . toPath . stripEnd
-                     timeIt
-       Just cached -> U.findInProject cached ("*" <> logFile <> "*") >>= \case
-         -- does the cache have a timing file?
-         Nothing  -> do Sh.cd . toPath . unPackageDirectory $ cached
-                        Sh.rm_rf "dist-newstyle"
-                        timeIt
-         Just _   -> do Sh.echo $ pack "Log already exists for package: " <> p <> pack "...skipping build"
-                        -- U.mkLogFile
+
+diagnosePackage :: Package -> LogFile -> TimingsFile -> Sh.Sh ()
+diagnosePackage p lf tf = do U.cdToPackage p
+                             U.buildTimings
+                             Sh.liftIO $ P.timingsToCsv lf tf
 
 
-diagnosePackage :: Package -> Sh.Sh ()
-diagnosePackage = diagnosePackageBy U.buildTimings
+diagnosePackageWithGhc :: Package -> LogFile -> TimingsFile -> GhcPath -> Sh.Sh ()
+diagnosePackageWithGhc p lf tf ghc = do U.cdToPackage p
+                                        U.buildTimingsWithGhc ghc
+                                        Sh.liftIO $ P.timingsToCsv lf tf
 
 
-diagnosePackageWithGhc :: GhcPath -> Package -> Sh.Sh ()
-diagnosePackageWithGhc = diagnosePackageBy .  U.buildTimingsWithGhc
-
-
-diagnosePackages :: PackageSet -> Sh.Sh ()
-diagnosePackages (unPackageSet -> ps) =
+diagnosePackages :: PackageSet -> LogFile -> TimingsFile -> Sh.Sh ()
+diagnosePackages (unPackageSet -> ps) lf tf =
   do rootDir <- Sh.pwd
-     mapM_ (\p -> Sh.cd rootDir >> diagnosePackage p) ps
+     mapM_ (\p -> Sh.cd rootDir >> diagnosePackage p lf tf) ps
 
 
-diagnosePackagesWithGhc :: PackageSet -> GhcPath -> Sh.Sh ()
-diagnosePackagesWithGhc (unPackageSet -> ps) gs =
+diagnosePackagesWithGhc :: PackageSet -> LogFile -> TimingsFile -> GhcPath -> Sh.Sh ()
+diagnosePackagesWithGhc (unPackageSet -> ps) lf tf ghc =
   do rootDir <- Sh.pwd
-     mapM_ (\p -> Sh.cd rootDir >> diagnosePackageWithGhc gs p) ps
+     mapM_ (\p -> Sh.cd rootDir >> diagnosePackageWithGhc p lf tf ghc) ps

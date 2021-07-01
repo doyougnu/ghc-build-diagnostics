@@ -26,6 +26,7 @@ import           Data.List                              ((\\))
 import           Data.Maybe                             (isNothing)
 import           System.FilePath                        (takeBaseName)
 import           Data.Functor                           ((<&>))
+import           System.FilePath (takeFileName)
 
 import qualified Distribution.PackageDescription        as PD
 
@@ -160,16 +161,20 @@ cabalGet p = Sh.catch_sh go handle -- cabal will error if the directory already
     handle _  = return ()
 
 cabalBuild :: LogFile -> [T.Text] -> Sh.Sh ()
-cabalBuild lf = Sh.escaping False .
-                Sh.command_ "cabal" [ "new-build"
-                                    , "--allow-newer"
-                                    , "--ghc-option=-ddump-timings"
-                                    , "--ghc-option=-v2"
-                                    , "2>&1" -- to capture symbols sent to stderr
-                                    , "|"
-                                    , "tee"
-                                    , lf
-                                    ]
+cabalBuild lf extras = Sh.catch_sh go handle
+  where go = Sh.escaping False $ Sh.command_ "cabal"
+             ([ "new-build"
+              , "--allow-newer"
+              , "--ghc-option=-ddump-timings"
+              , "--ghc-option=-v2"
+              ]
+               <> extras <> [ "2>&1" -- to capture symbols sent to stderr
+                            , "|"
+                            , "tee"
+                            , lf
+                            ]) []
+        handle :: SomeException -> Sh.Sh ()
+        handle _ = return ()
 
 
 cachedPackages :: Sh.Sh PackageSet
@@ -178,6 +183,22 @@ cachedPackages = PackageSet . fmap packageName <$> Sh.lsT cache
     packageName :: Package -> Package
     packageName = fst . T.breakOn dash . T.pack . takeBaseName . T.unpack
     dash        = "-" :: T.Text
+
+
+cdToPackage :: Package -> Sh.Sh ()
+cdToPackage p =
+  do
+    findProject p >>= \case
+      Nothing -> do Sh.echo (T.pack "Package not in cache...Building")
+                    Sh.cd cache
+                    cabalGet p
+                    -- find the new directory and enter it
+                    findIn "." (p <> "*") [ "-type"
+                                          , "d"
+                                          , "-maxdepth"
+                                          , "1"
+                                          ] >>= Sh.cd . takeFileName . toPath . T.stripEnd
+      Just cached -> Sh.cd $ toPath cached
 
 
 validatePackages :: PackageSet -> Sh.Sh RebuildSet

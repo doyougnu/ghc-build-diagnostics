@@ -24,7 +24,7 @@ import           Control.Applicative (some)
 import           Control.Monad       (void)
 
 import qualified GHC.Packages        as P
-import qualified GHC.Process         as Prc
+
 import qualified GHC.Diagnostics     as D
 import qualified GHC.Utils           as U
 import           GHC.Types
@@ -45,17 +45,13 @@ main = do
     Clean          -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache ps  -> U.cacheExistsOrMake >>
                       between "Building cache" "done" (P.buildCache ps)
-    Packages ps ghcPath' -> mkGhcPath ghcPath' >>= \case
-      Nothing      -> do U.cacheExistsOrMake
-                         Sh.echo "in nothing"
-                         D.diagnosePackages ps
-                         tf   <- U.mkTimingFile
-                         lf   <- U.mkLogFile
-                         curr <- Sh.pwd
-                         Sh.liftIO $ Prc.timingsToCsv (toText $ curr Sh.</> lf) (toText $ curr Sh.</> tf)
-      Just ghcPath -> do _ <- U.cacheExistsOrMake
-                         Sh.echo "in just"
-                         D.diagnosePackagesWithGhc ps ghcPath
+    Packages ps ghcPath' -> do Sh.echo $ "Diagnosing: " <> (toText ps)
+                               _    <- U.cacheExistsOrMake
+                               tf   <- U.mkTimingFile
+                               lf   <- U.mkLogFile
+                               mkGhcPath ghcPath' >>= \case
+                                 Nothing      -> D.diagnosePackages        ps tf lf
+                                 Just ghcPath -> D.diagnosePackagesWithGhc ps tf lf ghcPath
 
 
 -- | parse the input package and options
@@ -65,10 +61,10 @@ parseInput = O.subparser $ packageInput <> clean <> build
                        O.info
                        (Packages
                         <$> (PackageSet <$> some (O.argument O.str (O.metavar "PACKAGE")))
-                        <*> O.optional (O.strOption ( O.long "ghcs"
+                        <*> O.optional (O.strOption ( O.long "ghc"
                                          <> O.short 'g'
                                          <> O.metavar "GHCSFILE"
-                                         <> O.help "file that holds paths to each ghc version to use")))
+                                         <> O.help "path to a ghc version to use")))
 
                        (O.progDesc "Build and diagnose the packages passed by stdin")
 
