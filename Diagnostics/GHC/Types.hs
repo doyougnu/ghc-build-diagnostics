@@ -20,9 +20,8 @@ module GHC.Types
   , Version
   , LogFile
   , URL
+  , GhcPath(..)
   , PackageSet(..)
-  , GhcFile
-  , GhcSet(..)
   , RebuildSet(..)
   , CompressedPackage(..)
   , PackageDirectory(..)
@@ -34,9 +33,9 @@ module GHC.Types
   , MainFile(..)
   , Executable
   , Library
+  , mkGhcPath
   , mkCabalFile
   , mkMainFile
-  , mkGhcSet
   , workingDir
   , packageList
   , tarCache
@@ -52,16 +51,23 @@ import qualified Shelly    as Sh
 
 -- | Type synonyms for more descriptive types
 type Package      = T.Text
-type GhcFile      = T.Text   -- ^ A path to a file which lists paths to ghc versions
-type GhcPath      = T.Text   -- ^ a path to a version of ghc
 type LogFile      = T.Text
 type ProjectCache = FilePath
 type Version      = T.Text
 type URL          = T.Text
 
+newtype GhcPath = GhcPath { unGhcPath :: T.Text }
+                deriving newtype Show
 
 newtype CabalFile = CabalFile { unCabalFile :: T.Text }
                   deriving stock Show
+
+mkGhcPath :: T.Text -> Sh.Sh (Maybe GhcPath)
+mkGhcPath ghc = do version <- T.strip <$> Sh.command (toPath ghc) ["--numeric-version"] []
+                   return $
+                     if version == mempty
+                     then Nothing
+                     else Just $! GhcPath ghc
 
 mkCabalFile :: T.Text -> Sh.Sh CabalFile
 mkCabalFile = fmap (CabalFile . toText) . Sh.canonicalize . toPath
@@ -84,13 +90,6 @@ newtype PackageSet = PackageSet { unPackageSet :: [Package] }
 
 -- | a bunch of compilers
 
-newtype GhcSet = GhcSet { unGhcSet :: [GhcPath] }
-               deriving newtype Show
-
-
-mkGhcSet :: GhcFile -> Sh.Sh GhcSet
-mkGhcSet = fmap (GhcSet . T.lines) . Sh.readfile . toPath
-
 -- | packages that the user is requesting but are not in the cache
 newtype RebuildSet = RebuildSet { unRebuildSet :: [Package] }
                    deriving newtype (Semigroup, Monoid)
@@ -112,7 +111,6 @@ instance ToText CompressedPackage where toText = unCompressedPackage
 instance ToText PackageDirectory  where toText = unPackageDirectory
 instance ToText FilePath          where toText = Sh.toTextIgnore
 instance ToText RebuildSet        where toText = T.unlines . unRebuildSet
-instance ToText GhcSet            where toText = T.unlines . unGhcSet
 
 
 -- | Type Class to project a type to a file path

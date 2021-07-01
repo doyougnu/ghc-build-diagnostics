@@ -103,6 +103,7 @@ createCache = Sh.mkdir_p cache
 cacheExistsOrMake :: Sh.Sh ()
 cacheExistsOrMake = createWorkingDir >> createCache
 
+
 -- | low level wrapper around find
 findIn :: T.Text -- ^ Where to look
        -> T.Text -- ^ thing to find
@@ -190,22 +191,32 @@ buildTimingsBy :: [T.Text] -- ^ Extra arguments
                -> Sh.Sh ()
 buildTimingsBy = flip cabalBuild
 
+
+mkLogFileBy :: Sh.Sh T.Text -> Sh.Sh T.Text
+mkLogFileBy getVersion = (\version -> version <> "-" <> logFile) <$> getVersion
+
+
 mkLogFile :: Sh.Sh T.Text
-mkLogFile = (\version -> version <> "-" <> logFile) <$> ghcVersion
-
-mkTimingFile :: Sh.Sh T.Text
-mkTimingFile = (\version -> version <> "-" <> timingFile) <$> ghcVersion
-
-buildTimings :: Sh.Sh ()
-buildTimings = mkLogFile >>= buildTimingsBy mempty
+mkLogFile = mkLogFileBy ghcVersion
 
 
 ghcVersion :: Sh.Sh T.Text
 ghcVersion = T.strip <$> Sh.command "ghc" ["--numeric-version"] []
 
 
-buildTimingsWithGhc :: GhcSet -> Sh.Sh ()
-buildTimingsWithGhc (unGhcSet -> ghcs) =
-  do lfs <- mkLogFiles ghcs
-     let go ghc lf = buildTimingsBy ["-w", ghc] lf
-     mapM_ (()go) ghcs
+ghcVersionWithGhc :: GhcPath -> Sh.Sh T.Text
+ghcVersionWithGhc (T.unpack . unGhcPath -> ghc) =
+  T.strip <$> Sh.command ghc ["--numeric-version"] []
+
+
+mkTimingFile :: Sh.Sh T.Text
+mkTimingFile = (\version -> version <> "-" <> timingFile) <$> ghcVersion
+
+
+buildTimings :: Sh.Sh ()
+buildTimings = mkLogFileBy ghcVersion >>= buildTimingsBy mempty
+
+
+buildTimingsWithGhc :: GhcPath -> Sh.Sh ()
+buildTimingsWithGhc ghc = mkLogFileBy (ghcVersionWithGhc ghc) >>=
+                          buildTimingsBy ["-w", unGhcPath ghc]

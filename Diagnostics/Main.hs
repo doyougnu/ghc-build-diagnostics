@@ -10,6 +10,7 @@
 -----------------------------------------------------------------------------
 
 {-# OPTIONS_GHC -Wall -Werror  #-}
+{-# LANGUAGE LambdaCase #-}
 {-# LANGUAGE OverloadedStrings #-}
 
 module Main where
@@ -21,6 +22,7 @@ import qualified Shelly              as Sh
 
 import           Control.Applicative (some)
 import           Control.Monad       (void)
+import           Data.Maybe          (fromMaybe)
 
 import qualified GHC.Packages        as P
 import qualified GHC.Process         as Prc
@@ -29,9 +31,9 @@ import qualified GHC.Utils           as U
 import           GHC.Types
 
 -- | The mode the command line application is run in
-data Mode = Packages   PackageSet (Maybe GhcFile) -- ^ Analyze a set of packages, read from stdin
-          | BuildCache PackageSet         -- ^ Download all the packages from hackage
-          | Clean                         -- ^ Delete the cache
+data Mode = Packages   PackageSet (Maybe T.Text) -- ^ Analyze a set of packages, read from stdin
+          | BuildCache PackageSet                -- ^ Download all the packages from hackage
+          | Clean                                -- ^ Delete the cache
 
 
 main :: IO ()
@@ -44,14 +46,14 @@ main = do
     Clean          -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache ps  -> U.cacheExistsOrMake >>
                       between "Building cache" "done" (P.buildCache ps)
-    Packages ps gs -> case gs of
+    Packages ps ghcPath' -> (mkGhcPath $ mempty `fromMaybe` ghcPath') >>= \case
       Nothing      -> do U.cacheExistsOrMake
-                         lf <- D.diagnosePackages ps
+                         D.diagnosePackages ps
                          tf <- U.mkTimingFile
+                         lf <- U.mkLogFile
                          Sh.liftIO $ Prc.timingsToCsv lf tf
-      Just ghcFile -> do ghcs <- mkGhcSet ghcFile
-                         _ <- U.cacheExistsOrMake
-                         D.diagnosePackagesWithGhcs ps ghcs
+      Just ghcPath -> do _ <- U.cacheExistsOrMake
+                         D.diagnosePackagesWithGhcs ps ghcPath
 
 
 -- | parse the input package and options
