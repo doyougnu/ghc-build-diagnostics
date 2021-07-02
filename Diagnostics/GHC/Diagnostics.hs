@@ -31,13 +31,13 @@ import qualified GHC.Process     as P
 diagnosePackage :: Package -> LogFile -> TimingsFile -> Sh.Sh ()
 diagnosePackage p lf tf = do U.cdToPackage p
                              U.buildTimings
-                             P.timingsToCsv lf tf
+                             P.timingsToCsv p lf tf
 
 
 diagnosePackageWithGhc :: Package -> LogFile -> TimingsFile -> GhcPath -> Sh.Sh ()
 diagnosePackageWithGhc p lf tf ghc = do U.cdToPackage p
                                         U.buildTimingsWithGhc ghc
-                                        P.timingsToCsv lf tf
+                                        P.timingsToCsv p lf tf
 
 
 diagnosePackages :: PackageSet -> LogFile -> TimingsFile -> Sh.Sh ()

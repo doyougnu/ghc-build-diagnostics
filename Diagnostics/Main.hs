@@ -49,9 +49,13 @@ main = do
                                _    <- U.cacheExistsOrMake
                                tf   <- U.mkTimingFile
                                lf   <- U.mkLogFile
+                               csv  <- U.mkCSVFile
+                               root <- Sh.pwd
                                mkGhcPath ghcPath' >>= \case
                                  Nothing      -> D.diagnosePackages        ps lf tf
                                  Just ghcPath -> D.diagnosePackagesWithGhc ps lf tf ghcPath
+                               Sh.cd root >> U.collectCSVs tf csv
+
 
 
 -- | parse the input package and options

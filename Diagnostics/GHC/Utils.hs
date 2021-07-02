@@ -164,6 +164,7 @@ cabalBuild (toText -> lf) extras = Sh.catch_sh go handle
   where go = Sh.escaping False $ Sh.command_ "cabal"
              ([ "new-build"
               , "--allow-newer"
+              , "--disable-tests"
               , "--ghc-option=-ddump-timings"
               , "--ghc-option=-v2"
               ]
@@ -240,3 +241,24 @@ ghcVersionWithGhc (T.unpack . unGhcPath -> ghc) =
 
 mkTimingFile :: Sh.Sh TimingsFile
 mkTimingFile = (\version -> TimingsFile $ version <> "-" <> timingFile) <$> ghcVersion
+
+
+mkCSVFile :: Sh.Sh CSVFile
+mkCSVFile = (\version -> CSVFile $ version <> "-" <> csvFile) <$> ghcVersion
+
+
+collectCSVs :: TimingsFile -> CSVFile -> Sh.Sh ()
+collectCSVs (toText -> tf) (toText -> csv) =
+  Sh.escaping False $
+  Sh.command_ "find" [toText cache
+                     , "-name"
+                     , tf
+                     , "-exec"
+                     , "tail"
+                     , "-n"
+                     , "+2"
+                     , "{}"
+                     , "\\;"
+                     , ">>"
+                     , csv
+                     ] []

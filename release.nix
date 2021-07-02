@@ -1,4 +1,4 @@
-{ compiler ? "ghc8104" }:
+{ compiler ? "ghc901" }:
 
 let
   config = {
@@ -17,6 +17,9 @@ let
             overrides = haskellPackagesNew: haskellPackagesOld: rec {
 
               ghc-build-diagnostics = haskellPackagesNew.callPackage ./default.nix {};
+              mkDerivation = args: haskellPackagesOld.mkDerivation (args // {
+                doCheck = false;
+              });
               # unordered-containers = haskellPackagesNew.callPackage ./unordered-containers.nix {};
             };
           };

@@ -39,11 +39,11 @@ import qualified GHC.Utils                  as U
 
 type Parser = Parsec Void T.Text
 
-timingsToCsv :: (ToPath in_, ToPath out_) => in_ -> out_ -> Sh.Sh ()
-timingsToCsv (toPath -> in_) (toPath -> out_) =
+timingsToCsv :: (ToPath in_, ToPath out_) => Package -> in_ -> out_ -> Sh.Sh ()
+timingsToCsv p (toPath -> in_) (toPath -> out_) =
   do contents <- Sh.readfile in_
      let ls   = T.lines contents
-         rows = rights $ fmap (parse row mempty) ls
+         rows = rights $ fmap (parse (row p) mempty) ls
      Sh.writefile out_ (TE.decodeUtf8 . toStrict $ CSV.encodeDefaultOrderedByName rows)
 
 
@@ -86,24 +86,26 @@ time = lexeme $ skipSomeTill letters (lexeme L.float)
 alloc :: Parser Float
 alloc = skipSomeTill letters comma >> skipSomeTill letters (lexeme L.float)
 
-row :: Parser Row
-row = do _ <- startingExcls
-         _phase  <- phase
-         _module <- module'
-         void colon
-         _time   <- time
-         _alloc  <- alloc
-         return Row{..}
+row :: Package -> Parser Row
+row p = do _ <- startingExcls
+           _phase  <- phase
+           _module <- module'
+           void colon
+           _time   <- time
+           _alloc  <- alloc
+           let _package = p
+           return Row{..}
 
 
-data Row = Row { _phase  :: !T.Text
+data Row = Row { _package :: !T.Text
+               , _phase  :: !T.Text
                , _module :: !T.Text
                , _time   :: !Float
                , _alloc  :: !Float
                } deriving (Generic, Show)
 
 csvHeader :: CSV.Header
-csvHeader = CSV.header ["Phase", "Module", "Time", "Allocations"]
+csvHeader = CSV.header ["Package", "Phase", "Module", "Time", "Allocations"]
 
 
 instance CSV.ToRecord       Row

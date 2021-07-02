@@ -21,6 +21,7 @@ module GHC.Types
   , URL
   , LogFile(..)
   , TimingsFile(..)
+  , CSVFile(..)
   , GhcPath(..)
   , PackageSet(..)
   , RebuildSet(..)
@@ -44,6 +45,7 @@ module GHC.Types
   , tarGz
   , logFile
   , timingFile
+  , csvFile
   ) where
 
 import qualified Data.Text as T
@@ -66,6 +68,9 @@ newtype LogFile = LogFile { unLogFile :: T.Text }
                   deriving newtype Show
 
 newtype TimingsFile = TimingsFile { unTimingsFile :: T.Text }
+                  deriving newtype Show
+
+newtype CSVFile = CSVFile { unCSVFile :: T.Text }
                   deriving newtype Show
 
 mkGhcPath :: Maybe T.Text -> Sh.Sh (Maybe GhcPath)
@@ -121,6 +126,7 @@ instance ToText RebuildSet        where toText = T.unlines . unRebuildSet
 instance ToText PackageSet        where toText = T.unlines . unPackageSet
 instance ToText LogFile           where toText = unLogFile
 instance ToText TimingsFile       where toText = unTimingsFile
+instance ToText CSVFile           where toText = unCSVFile
 
 
 -- | Type Class to project a type to a file path
@@ -153,8 +159,14 @@ tarCache = "tarCache"
 logFile :: T.Text
 logFile = "timings.log"
 
+
 timingFile :: T.Text
 timingFile = "timings.csv"
+
+
+csvFile :: T.Text
+csvFile = "data.csv"
+
 
 cache :: ProjectCache
 cache = workingDir Sh.</> ("cache" :: T.Text)
