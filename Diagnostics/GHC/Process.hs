@@ -111,6 +111,3 @@ csvHeader = CSV.header ["Package", "Phase", "Module", "Time", "Allocations"]
 instance CSV.ToRecord       Row
 instance CSV.ToNamedRecord  Row
 instance CSV.DefaultOrdered Row
-
-t :: T.Text
-t = "!!! initializing package database: finished in 22.98 milliseconds, allocated 15.857 megabytes"

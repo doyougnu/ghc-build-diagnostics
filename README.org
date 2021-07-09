@@ -1,0 +1,149 @@
+#+title: Ghc Build Diagnostics
+
+* What
+  A small utility to get compiler performance metrics from GHC. This script
+  /productizes/ [[https://gitlab.haskell.org/bgamari/ghc-utils/-/blob/master/ghc_timings.py][this]] script by[[https://gitlab.haskell.org/bgamari/ghc-utils/-/blob/master/ghc_timings.py][ Ben Gamari]]. That is, it does the same thing
+  (produce and parse ~-ddump-timings~ to a csv) but does so automatically and
+  without python + bash (so hopefully it requires less from the user).
+
+** Commands
+   The script is built with [[https://hackage.haskell.org/package/shelly-1.9.0/docs/Shelly.html][Shelly]] and [[https://hackage.haskell.org/package/optparse-applicative][optparse-applicative]], there are only a
+   few commands:
+   #+begin_src
+   $  nix-shell --pure --run './result/bin/ghc-build-diagnostics --help'
+      Usage: ghc-build-diagnostics COMMAND
+
+      Available options:
+        -h,--help                Show this help text
+
+      Available commands:
+        diagnose                 Build and diagnose the packages passed by stdin
+        clean                    Clean the package cache
+        cache                    Cache the packages on stdin
+   #+end_src
+
+** Diagnose
+   The central command, the input is a package name or list of package names and
+   the output is a csv file in the directory the script was called. For example,
+   ~./ghc-build-diagnostics aeson~ or ~./ghc-build-diagnostics aeson-1.5.6.0
+   random-1.2.0~. Then the script does the following:
+   1. Creates or enters a cache directory called ~.ghc-diagnostics/cache~ which
+      is persistent across runs.
+   2. Calls ~cabal get <package> [options] | tee <logfile>~ to download and build the package
+      from hackage with ~-ddump-timings~ and store the timings in a logfile.
+   3. Parse the logfile to a csv and aggregate each csv for every package in the
+      package set.
+   4. Write the aggregate csv file to the directory the script was called from
+      indexed by the GHC version used to build the packages. For example if you
+      used ~ghc-9.0.1-release~ then you'll have ~9.0.1-data.csv~ in the root
+      directory after the script finishes.
+
+** Clean
+   Removes the cache with ~rm -rf .ghc-diagnostics~
+
+** Cache
+   Downloads the package or list of packages on stdin but does not build them
+
+* How
+
+** Diagnose a package or packages
+   Run the script, passing the package on stdin:
+   ~./ghc-build-diagnostics <package-one> <package-two>~
+   Or my preferred method:
+   #+begin_src
+   $ cat packages
+     random-1.2.0
+     sbv-8.15
+     aeson-1.5.6.0
+     pandoc-2.14.0.3
+     persistent-2.13.1.1
+     Cabal-3.4.0.0
+     linear-1.21.6
+     wai
+
+   $ cat packages | xargs ./ghc-build-diagnostics diagnose
+   #+end_src
+
+** Diagnose a package or packages with a specific version of ghc
+   This is useful if you're working on GHC patch and want to see timings for
+   your patched GHC version. Under the hood this just calls to the ~-w~ cabal flag.
+
+   #+begin_src
+   $ cat packages | xargs ./ghc-build-diagnostics diagnose -g <path/to/ghc>
+   #+end_src
+
+   a real example on NixOs which cleans the cache and rebuilds the packages with a specific GHC:
+   #+begin_src
+   nix-shell --pure --run './result/bin/ghc-build-diagnostics clean && cat packages2 | xargs ./result/bin/ghc-build-diagnostics diagnose -g ~/programming/ghc-master/_build/stage1/bin/ghc'
+   #+end_src
+
+  same example not on NixOs:
+   #+begin_src
+   './ghc-build-diagnostics clean && cat packages | xargs ./ghc-build-diagnostics diagnose -g ~/programming/ghc-master/_build/stage1/bin/ghc'
+   #+end_src
+
+** Check the log file of a specific package
+   The log files aren't removed unless you delete or clean the cache. Each
+   package will have a log file indexed by the ghc version (as produced by ~ghc
+   --version~) in its root directory. The script checks for these files, and if
+   they exist the script will skip the package and reuse the log. For example
+   here is my current cache:
+   #+begin_src
+   $ pwd
+   /store/Programming/ghc-build-diagnostics
+
+   $ ls .ghc-diagnostics/cache
+   aeson-1.5.6.0  Cabal-3.4.0.0  linear-1.21.6  pandoc-2.14.0.3  persistent-2.13.1.1  random-1.2.0  sbv-8.15  wai-3.2.3
+
+   $ ls .ghc-diagnostics/cache/aeson-1.5.6.0
+   9.0.1-timings.csv  aeson.cabal         benchmarks  changelog.md   include  README.markdown  src      src-pure          stack-ffi-unescape.yaml  stack-nightly.yaml
+   9.0.1-timings.log  attoparsec-iso8601  cbits       dist-newstyle  LICENSE  Setup.lhs        src-ffi  stack-bench.yaml  stack-lts12.yaml         tests
+   #+end_src
+
+   and you can see that I have run this using a ~ghc-9.0.1~ compiler.
+   Furthermore we can check each csv or log file in the cache with ~find~:
+    #+begin_src
+   $ pwd
+   /store/Programming/ghc-build-diagnostics
+
+   $ find .ghc-diagnostics/cache -maxdepth 2 -name "*.csv"
+   .ghc-diagnostics/cache/persistent-2.13.1.1/9.0.1-timings.csv
+   .ghc-diagnostics/cache/wai-3.2.3/9.0.1-timings.csv
+   .ghc-diagnostics/cache/pandoc-2.14.0.3/9.0.1-timings.csv
+   .ghc-diagnostics/cache/aeson-1.5.6.0/9.0.1-timings.csv
+   .ghc-diagnostics/cache/sbv-8.15/9.0.1-timings.csv
+   .ghc-diagnostics/cache/random-1.2.0/9.0.1-timings.csv
+   .ghc-diagnostics/cache/linear-1.21.6/9.0.1-timings.csv
+   .ghc-diagnostics/cache/Cabal-3.4.0.0/9.0.1-timings.csv
+    #+end_src
+
+* Why
+  There are several lower level benchmarking techniques for GHC that are well
+  documented on the GHC wiki. This script is meant to give insight into compiler
+  performance at a user facing level, i.e., the user says ~cabal build~ or
+  ~stack build~. Right now we only capture ~-ddump-timings~ but really any other
+  option is available (and easy to add).
+
+* Known Problems
+  - There is no error handling, so the only way to know if something went wrong
+    for a particular package is if you inspect the package's log file.
+  - You may get interface errors. If you are using the same compiler version,
+    then cabal will cache builds in ~/.cabal/store/ghc-<version~ normally this
+    is great but if you are working on a core library then you'll get the an
+    error like this:
+    #+begin_src
+    Failed to load interface for ‘Data.IntMap.Internal’
+    no unit id matching ‘containers-0.6.2.1’ was found
+    #+end_src
+    You need to remove the old cache to fix it: ~rm -rf
+    ~/.cabal/store/ghc-version~. This could mess up other projects on your PC if
+    you aren't sandboxing or using NixOs.
+  - The script doesn't differentiate GHC builds. Say you are hacking on
+    ~ghc-9.0.1-release~ and you make some changes and then run the script.
+    You'll get a ~9.0.1-data.csv~ file out. Now say you want to compare to a
+    unaltered ~ghc-9.0.1-release~, so you checkout the tag, rebuild the compiler
+    and run the script again. You'll find that you'll have a /single/
+    ~9.0.1-data.csv~ in your root directory, not /one for each run/ because from
+    the scripts perspective the compiler was the exact same version: ~9.0.1~ and
+    so when the script issues ~ghc --version~ it will /overwrite/ your old csv
+    file. This isn't hard to fix, just be aware of it.

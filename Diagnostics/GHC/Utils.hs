@@ -18,16 +18,17 @@
 
 module GHC.Utils where
 
-import qualified Data.Text                              as T
-import qualified Shelly                                 as Sh
+import qualified Data.Text                       as T
+import qualified Shelly                          as Sh
 
-import           Control.Exception.Base                 (SomeException)
-import           Data.List                              ((\\))
-import           Data.Maybe                             (isNothing)
-import           System.FilePath                        (takeBaseName,takeFileName)
-import           Data.Functor                           ((<&>))
+import           Control.Exception.Base          (SomeException)
+import           Control.Monad                   (void)
+import           Data.Functor                    ((<&>))
+import           Data.List                       ((\\))
+import           Data.Maybe                      (isNothing)
+import           System.FilePath                 (takeBaseName, takeFileName)
 
-import qualified Distribution.PackageDescription        as PD
+import qualified Distribution.PackageDescription as PD
 
 
 import           GHC.Types
@@ -149,19 +150,22 @@ cabalGetPackages = mapM_ cabalGet . unRebuildSet
 
 
 cabalGet :: Package -> Sh.Sh ()
-cabalGet p = Sh.catch_sh go handle -- cabal will error if the directory already
-                                   -- exists we catch this error here to
-                                   -- continue processing the directory and auto
-                                   -- succeed if the directory exists
+cabalGet p = void $! trySh go
+  -- cabal will error if the directory already
+  -- exists we catch this error here to
+  -- continue processing the directory and auto
+  -- succeed if the directory exists
   where
     go :: Sh.Sh ()
     go = Sh.command_ "cabal" ["get"] [p]
-    handle :: SomeException -> Sh.Sh()
-    handle _  = return ()
+
+trySh :: Sh.Sh a -> Sh.Sh (Either SomeException a)
+trySh a = Sh.catch_sh (Right <$> a) (return . Left)
 
 cabalBuild :: LogFile -> [T.Text] -> Sh.Sh ()
-cabalBuild (toText -> lf) extras = Sh.catch_sh go handle
-  where go = Sh.escaping False $ Sh.command_ "cabal"
+cabalBuild (toText -> lf) extras = void go
+  where go = Sh.escaping False $ trySh $
+             Sh.command_ "cabal"
              ([ "new-build"
               , "--allow-newer"
               , "--disable-tests"
@@ -173,8 +177,6 @@ cabalBuild (toText -> lf) extras = Sh.catch_sh go handle
                             , "tee"
                             , lf
                             ]) []
-        handle :: SomeException -> Sh.Sh ()
-        handle _ = return ()
 
 
 cachedPackages :: Sh.Sh PackageSet

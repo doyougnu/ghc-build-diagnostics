@@ -10,7 +10,6 @@
 -----------------------------------------------------------------------------
 
 {-# OPTIONS_GHC -Wall -Werror  #-}
-{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE OverloadedStrings #-}
 {-# LANGUAGE ViewPatterns      #-}
 

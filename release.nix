@@ -20,6 +20,7 @@ let
               mkDerivation = args: haskellPackagesOld.mkDerivation (args // {
                 doCheck = false;
               });
+              hs-colour = haskellPackagesNew.callPackage ./nix/hscolour.nix {};
               # unordered-containers = haskellPackagesNew.callPackage ./unordered-containers.nix {};
             };
           };
@@ -39,6 +40,8 @@ in
       packages = p: [ghc-build-diagnostics];
       withIDe = true;
       buildInputs = with pkgs; [ zlib
+                                 numactl # required for some packages such as pandoc
+                                 gmp     # required for sbv
                                  cabal-install
                                  wget
                                ]
@@ -52,6 +55,7 @@ in
                                ghc-prof-flamegraph
                                profiteur
                                conduit
+                               containers_0_6_4_1
                              ]);
     };
   }
