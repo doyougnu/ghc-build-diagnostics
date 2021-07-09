@@ -64,7 +64,7 @@
    $ cat packages | xargs ./ghc-build-diagnostics diagnose
    #+end_src
 
-** Diagnose a package or packages with a specific version of ghc
+** Diagnose a package or packages with a specific version local version of ghc
    This is useful if you're working on GHC patch and want to see timings for
    your patched GHC version. Under the hood this just calls to the ~-w~ cabal flag.
 
