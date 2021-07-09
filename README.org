@@ -72,12 +72,13 @@
    $ cat packages | xargs ./ghc-build-diagnostics diagnose -g <path/to/ghc>
    #+end_src
 
-   a real example on NixOs which cleans the cache and rebuilds the packages with a specific GHC:
+   Here is a real example on NixOs which cleans the cache and rebuilds the
+   packages with a specific GHC:
    #+begin_src
    nix-shell --pure --run './result/bin/ghc-build-diagnostics clean && cat packages2 | xargs ./result/bin/ghc-build-diagnostics diagnose -g ~/programming/ghc-master/_build/stage1/bin/ghc'
    #+end_src
 
-  same example not on NixOs:
+   Here is the same example not on NixOs:
    #+begin_src
    './ghc-build-diagnostics clean && cat packages | xargs ./ghc-build-diagnostics diagnose -g ~/programming/ghc-master/_build/stage1/bin/ghc'
    #+end_src
