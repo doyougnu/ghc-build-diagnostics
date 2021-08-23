@@ -45,16 +45,20 @@ main = do
     Clean          -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache ps  -> U.cacheExistsOrMake >>
                       between "Building cache" "done" (P.buildCache ps)
-    Packages ps ghcPath' -> do Sh.echo $ "Diagnosing: \n" <> (toText ps)
+    Packages ps ghcPath' -> do Sh.echo $ "Diagnosing: \n" <> (toText ps) <> "\n" <> toText ghcPath'
                                _    <- U.cacheExistsOrMake
-                               tf   <- U.mkTimingFile
-                               lf   <- U.mkLogFile
-                               csv  <- U.mkCSVFile
                                root <- Sh.pwd
                                mkGhcPath ghcPath' >>= \case
-                                 Nothing      -> D.diagnosePackages        ps lf tf
-                                 Just ghcPath -> D.diagnosePackagesWithGhc ps lf tf ghcPath
-                               Sh.cd root >> U.collectCSVs tf csv
+                                 Nothing      -> do tf   <- U.mkTimingFile
+                                                    lf   <- U.mkLogFile
+                                                    csv  <- U.mkCSVFile
+                                                    D.diagnosePackages        ps lf tf
+                                                    Sh.cd root >> U.collectCSVs tf csv
+                                 Just ghcPath -> do tf'   <- U.mkTimingFileWithGhc ghcPath
+                                                    lf'   <- U.mkLogFileWithGhc ghcPath
+                                                    csv'  <- U.mkCSVFileWithGhc ghcPath
+                                                    D.diagnosePackagesWithGhc ps lf' tf' ghcPath
+                                                    Sh.cd root >> U.collectCSVs tf' csv'
 
 
 

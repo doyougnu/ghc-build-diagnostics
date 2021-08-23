@@ -127,6 +127,7 @@ instance ToText PackageSet        where toText = T.unlines . unPackageSet
 instance ToText LogFile           where toText = unLogFile
 instance ToText TimingsFile       where toText = unTimingsFile
 instance ToText CSVFile           where toText = unCSVFile
+instance Show a => ToText (Maybe a) where toText = toText . show
 
 
 -- | Type Class to project a type to a file path

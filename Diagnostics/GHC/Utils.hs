@@ -167,10 +167,12 @@ cabalBuild (toText -> lf) extras = void go
   where go = Sh.escaping False $ trySh $
              Sh.command_ "cabal"
              ([ "new-build"
+              , "--force-reinstalls"
               , "--allow-newer"
               , "--disable-tests"
               , "--ghc-option=-ddump-timings"
               , "--ghc-option=-v2"
+              , "--ghc-option=-fforce-recomp"
               ]
                <> extras <> [ "2>&1" -- to capture symbols sent to stderr
                             , "|"
@@ -232,6 +234,9 @@ mkLogFile :: Sh.Sh LogFile
 mkLogFile = mkLogFileBy ghcVersion
 
 
+mkLogFileWithGhc :: GhcPath -> Sh.Sh LogFile
+mkLogFileWithGhc = mkLogFileBy . ghcVersionWithGhc
+
 ghcVersion :: Sh.Sh T.Text
 ghcVersion = T.strip <$> Sh.command "ghc" ["--numeric-version"] []
 
@@ -247,6 +252,14 @@ mkTimingFile = (\version -> TimingsFile $ version <> "-" <> timingFile) <$> ghcV
 
 mkCSVFile :: Sh.Sh CSVFile
 mkCSVFile = (\version -> CSVFile $ version <> "-" <> csvFile) <$> ghcVersion
+
+
+mkTimingFileWithGhc :: GhcPath -> Sh.Sh TimingsFile
+mkTimingFileWithGhc = fmap (\version -> TimingsFile $ version <> "-" <> timingFile) . ghcVersionWithGhc
+
+
+mkCSVFileWithGhc :: GhcPath -> Sh.Sh CSVFile
+mkCSVFileWithGhc = fmap (\version -> CSVFile $ version <> "-" <> csvFile) . ghcVersionWithGhc
 
 
 collectCSVs :: TimingsFile -> CSVFile -> Sh.Sh ()
