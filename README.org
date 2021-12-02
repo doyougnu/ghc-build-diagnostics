@@ -162,3 +162,25 @@ cabal build
     the scripts perspective the compiler was the exact same version: ~9.0.1~ and
     so when the script issues ~ghc --version~ it will /overwrite/ your old csv
     file. This isn't hard to fix, just be aware of it.
+  - As I said there is no error handling. So if you request a package and have
+    the incorrect name /or/ incorrect version then you'll likely see something
+    similar to this:
+     #+begin_center shell
+        writefile /store/Programming/ghc-build-diagnostics/.ghc-diagnostics/cache/containers-0.6.5.1/9.3.20211123-timings.csv
+        cd /store/Programming/ghc-build-diagnostics
+        find .ghc-diagnostics/cache -name unordered-containers-0.2.15.0* -type d -maxdepth 1
+        which find
+        echo 'Package not in cache...Building'
+        cd /store/Programming/ghc-build-diagnostics/.ghc-diagnostics/cache
+        cabal get unordered-containers-0.2.15.0
+        which cabal
+        find . -name unordered-containers-0.2.15.0* -type d -maxdepth 1
+        which find
+        cd
+
+        Exception: Empty filepath
+     #+end_center
+     Where the script tried to download ~unordered-containers-0.2.15.0~ but
+    cabal's package list wasn't updated so only ~unordered-containers0.2.14.0~
+    was available. The fix is easy, just double check your spelling or run
+    ~cabal update~ to update the package list, then rerun
