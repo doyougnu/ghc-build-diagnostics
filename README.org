@@ -1,5 +1,11 @@
 #+title: Ghc Build Diagnostics
 
+* Dependencies
+- [[https://hackage.haskell.org/package/jailbreak-cabal][jailbreak-cabal]] is expected to be on your path
+- Cabal of course
+- Unix utilies like ~find~.
+- Thats it!
+
 * What
 
 

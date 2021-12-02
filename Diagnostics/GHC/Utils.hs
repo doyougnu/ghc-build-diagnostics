@@ -173,6 +173,7 @@ cabalBuild (toText -> lf) extras = void go
               , "--ghc-option=-ddump-timings"
               , "--ghc-option=-v2"
               , "--ghc-option=-fforce-recomp"
+              , "--ghc-option=-O2"
               ]
                <> extras <> [ "2>&1" -- to capture symbols sent to stderr
                             , "|"
@@ -188,6 +189,12 @@ cachedPackages = PackageSet . fmap packageName <$> Sh.lsT cache
     packageName = fst . T.breakOn dash . T.pack . takeBaseName . T.unpack
     dash        = "-" :: T.Text
 
+-- | remove versioning from all cabal files in current directory
+jailBreakCabal :: Sh.Sh ()
+jailBreakCabal = void
+  $ Sh.escaping False
+  $ trySh
+  $ Sh.command_ "jailbreak-cabal" ["*.cabal"] []
 
 cdToPackage :: Package -> Sh.Sh ()
 cdToPackage p =

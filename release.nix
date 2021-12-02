@@ -56,6 +56,7 @@ in
                                ghc-prof-flamegraph
                                profiteur
                                conduit
+                               jailbreak-cabal
                              ]);
     };
   }

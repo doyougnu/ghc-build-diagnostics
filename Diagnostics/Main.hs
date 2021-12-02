@@ -52,7 +52,7 @@ main = do
                                  Nothing      -> do tf   <- U.mkTimingFile
                                                     lf   <- U.mkLogFile
                                                     csv  <- U.mkCSVFile
-                                                    D.diagnosePackages        ps lf tf
+                                                    D.diagnosePackages ps lf tf
                                                     Sh.cd root >> U.collectCSVs tf csv
                                  Just ghcPath -> do tf'   <- U.mkTimingFileWithGhc ghcPath
                                                     lf'   <- U.mkLogFileWithGhc ghcPath
