@@ -6,6 +6,11 @@
 - Unix utilies like ~find~.
 - Thats it!
 
+* TODO
+- [] generate more robust data by running each build ~n~ times
+- [] add a silent flag
+- [] error handling
+
 * What
 
 
