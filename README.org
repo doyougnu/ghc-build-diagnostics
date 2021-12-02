@@ -1,6 +1,8 @@
 #+title: Ghc Build Diagnostics
 
 * What
+
+
   A small utility to get compiler performance metrics from GHC. This script
   /productizes/ [[https://gitlab.haskell.org/bgamari/ghc-utils/-/blob/master/ghc_timings.py][this]] script by[[https://gitlab.haskell.org/bgamari/ghc-utils/-/blob/master/ghc_timings.py][ Ben Gamari]]. That is, it does the same thing
   (produce and parse ~-ddump-timings~ to a csv) but does so automatically and
@@ -45,6 +47,17 @@
    Downloads the package or list of packages on stdin but does not build them
 
 * How
+
+** Build the script
+With ~nix~ (my preferred method)
+#+begin_center
+ nix-build --attr ghc-build-diagnostics release.nix
+#+end_center
+
+or with cabal
+#+begin_center
+cabal build
+#+end_center
 
 ** Diagnose a package or packages
    Run the script, passing the package on stdin:
@@ -117,6 +130,7 @@
    .ghc-diagnostics/cache/linear-1.21.6/9.0.1-timings.csv
    .ghc-diagnostics/cache/Cabal-3.4.0.0/9.0.1-timings.csv
     #+end_src
+
 
 * Why
   There are several lower level benchmarking techniques for GHC that are well

@@ -1,4 +1,4 @@
-{ compiler ? "ghc901" }:
+{ compiler ? "ghc8107" }:
 
 let
   config = {
@@ -30,20 +30,21 @@ let
   };
 
   pkgs = import <nixpkgs> { inherit config; };
-  # unstable = import <unstable> { };
+  unstable = import <unstable> { };
 
 in
   rec {
     ghc-build-diagnostics = pkgs.haskell.packages.${compiler}.ghc-build-diagnostics;
 
     shell = pkgs.haskell.packages.${compiler}.shellFor {
-      packages = p: [ghc-build-diagnostics];
+      packages = p: [ ghc-build-diagnostics ];
       withIDe = true;
       buildInputs = with pkgs; [ zlib
                                  numactl # required for some packages such as pandoc
                                  gmp     # required for sbv
                                  cabal-install
                                  wget
+                                 unstable.haskell-language-server
                                ]
       ++
       (with haskellPackages; [ hlint
@@ -55,7 +56,6 @@ in
                                ghc-prof-flamegraph
                                profiteur
                                conduit
-                               containers_0_6_4_1
                              ]);
     };
   }
