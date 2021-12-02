@@ -14,15 +14,17 @@ load <- function(file, ghc) {
   df %>% mutate(Package = as.factor(Package), Module = as.factor(Module))
 }
 
-ghcOld  <- load("9.3-master.csv", "ghc_old")
-ghcNew  <- load("9.3-wip.csv", "ghc_new")
+ghcOld  <- load("../9.3-master.csv", "ghc_old")
+## ghcNew  <- load("../9.3-occanal-unfolded.csv", "ghc_new")
+ghcNew  <- load("../9.3-master2.csv", "ghc_new")
 
 
 df <- rbind(ghcOld,ghcNew) %>%
   arrange(desc(Alloc)) %>%
   filter(Package != "wai"
        , Package != "wai-extra-3.1.6"
-       , Package != "persistent-2.13.1.1")
+       , Package != "persistent-2.13.1.1"
+       , Package != "random-1.2.0")
 
 ############################### Exploration #####################################
 
@@ -91,7 +93,7 @@ p2 <- ggplot(summary) +
   facet_grid(Package ~ .)
 
 p3 <- ggplot(summary) +
-  geom_segment(aes(x=Phase, xend=Phase, y=AvgTime_ghc_new, yend=AvgAlloc_ghc_old)) +
+  geom_segment(aes(x=Phase, xend=Phase, y=AvgTime_ghc_new, yend=AvgTime_ghc_old)) +
   geom_point(aes(x=Phase, y=AvgTime_ghc_new), color = "blue", size = 2) +
   geom_point(aes(x=Phase, y=AvgTime_ghc_old), color = "red", size = 2) +
   coord_flip() +
