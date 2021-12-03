@@ -170,10 +170,7 @@ cabalBuild (toText -> lf) extras = void go
               , "--force-reinstalls"
               , "--allow-newer"
               , "--disable-tests"
-              , "--ghc-option=-ddump-timings"
-              , "--ghc-option=-v2"
-              , "--ghc-option=-fforce-recomp"
-              , "--ghc-option=-O2"
+              , "--ghc-options='-ddump-timings -v2 -fforce-recomp -O2'"
               ]
                <> extras <> [ "2>&1" -- to capture symbols sent to stderr
                             , "|"
