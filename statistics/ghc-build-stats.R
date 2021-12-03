@@ -3,6 +3,7 @@ library(dplyr)
 library(tidyr)
 library(broom)
 library(scales)
+library(gdata)
 options("scipen"=999, "digits"=4)
 ################################ Preparation ###################################
 
@@ -15,8 +16,8 @@ load <- function(file, ghc) {
 }
 
 ghcOld  <- load("../9.3-master.csv", "ghc_old")
-## ghcNew  <- load("../9.3-occanal-unfolded.csv", "ghc_new")
-ghcNew  <- load("../9.3-master2.csv", "ghc_new")
+ghcNew  <- load("../9.3-occanal-unfolded.csv", "ghc_new")
+## ghcNew  <- load("../9.3-master2.csv", "ghc_new")
 
 
 df <- rbind(ghcOld,ghcNew) %>%
@@ -46,15 +47,27 @@ summaryModules <- df %>%
   pivot_wider(names_from = GHC, values_from = c(AvgAlloc,AvgTime,MedAlloc,MedTime)) %>% na.omit()
 
 ### Global difference
-slowdown <- summaryModules %>%
+allocChanges <- summaryModules %>%
   group_by(Package,Module) %>%
-  summarise(slowdown = ((AvgAlloc_ghc_new - AvgAlloc_ghc_old) / AvgAlloc_ghc_old) * 100)
+  summarise(PctChange = ((AvgAlloc_ghc_new - AvgAlloc_ghc_old) / AvgAlloc_ghc_old) * 100)
 
-slowdownPhase <- summary %>%
+allocChangesByPhasePackage <- summary %>%
   group_by(Package, Phase) %>%
-  summarise(slowdown = ((AvgAlloc_ghc_new - AvgAlloc_ghc_old) / AvgAlloc_ghc_old) * 100) %>%
-  arrange(desc(slowdown))
+  mutate(OldminusNew = AvgAlloc_ghc_old - AvgAlloc_ghc_new,
+         PctChange = abs((OldminusNew / AvgAlloc_ghc_old) * 100)) %>%
+  select(Package,Phase, AvgAlloc_ghc_old, AvgAlloc_ghc_new, OldminusNew, PctChange) %>%
+  arrange(desc(PctChange))
 
+timeChanges <- summaryModules %>%
+  group_by(Package,Module) %>%
+  summarise(slowdown = ((AvgTime_ghc_new - AvgTime_ghc_old) / AvgTime_ghc_old) * 100)
+
+timeChangesByPhasePackage <- summary %>%
+  group_by(Package, Phase) %>%
+  mutate(OldminusNew = AvgTime_ghc_old - AvgTime_ghc_new,
+         PctChange = abs((OldminusNew / AvgTime_ghc_old) * 100)) %>%
+  select(Package,Phase, AvgTime_ghc_old, AvgTime_ghc_new, OldminusNew, PctChange) %>%
+  arrange(desc(PctChange))
 
 ## sanity check
 observations <- df %>%
@@ -69,13 +82,15 @@ df %>% .[1:20, ] -> text_size
 
 ################################ Plotting ######################################
 
+  ## geom_text(data = text_size, aes(x=Alloc,y=Time, label = Module),
+  ##           position=position_jitter(),
+  ##           show.legend = FALSE) +
+  ## theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
+  ## geom_boxplot(aes(x=Alloc, y=Time, color=GHC)) +
+
 p <- ggplot(df) +
-  geom_point(aes(x=Alloc, y=Time)) +
-  geom_text(data = text_size, aes(x=Alloc,y=Time, label = Module),
-            position=position_jitter(),
-            show.legend = FALSE) +
-  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +
-  facet_grid(GHC ~ ., scales = "free")
+  geom_density(aes(x=Time)) +
+  facet_grid(. ~ Phase, scales = "free")
 
 
 ## clevelan dot plot showing the comparison per phase
@@ -87,7 +102,7 @@ p2 <- ggplot(summary) +
   geom_point(aes(x=Phase, y=AvgAlloc_ghc_old), color = "red", size = 2) +
   coord_flip() +
   labs(x = "Package"
-     , y = "Allocations"
+     , y = "Allocations [MB]"
      , color = "Legend") +
   scale_color_manual(values = colors) +
   facet_grid(Package ~ .)
@@ -98,7 +113,7 @@ p3 <- ggplot(summary) +
   geom_point(aes(x=Phase, y=AvgTime_ghc_old), color = "red", size = 2) +
   coord_flip() +
   labs(x = "Package"
-     , y = "Time"
+     , y = "Time [ms]"
      , color = "Legend") +
   scale_color_manual(values = colors) +
   facet_grid(Package ~ .)
@@ -106,5 +121,25 @@ p3 <- ggplot(summary) +
 
 ## ggsave(filename = "timevsallocs.svg", plot = p, height=10, width= 8)
 ## ggsave(filename = "hashedghc.svg", plot = p2, height=12, width= 7)
-write.table(slowdownPhase, "PhaseSlowdown",sep= "\t",row.names=FALSE)
-write.table(slowdown, "ModuleSlowdown",sep= "\t",row.names=FALSE)
+
+
+tableOutput <- function(prelude,fout,df){
+  separator <- "\n================================================================================\n"
+  header    <- paste(prelude,separator,sep = "")
+
+  ## rebind the colnames to a row before conversion so they are treated properly
+  ## in fixed width format (fwf)
+  fHandle <- file(fout)
+  writeLines(header, fHandle)
+  close(fHandle)
+
+  gdata::write.fwf(as.data.frame(df)
+                 , file     = fout
+                 , append   = TRUE
+                 , quote    = FALSE
+                 , colnames = TRUE  
+                 ## , width    = 35
+                 , sep = "\t\t")
+}
+
+tableOutput("Allocation [MB] by Package and Phase", "out.table", allocChangesByPhasePackage)
