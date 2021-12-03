@@ -196,6 +196,13 @@ jailBreakCabal = void
 clearCabalCache :: Sh.Sh ()
 clearCabalCache = Sh.command_ "rm" ["-rf"] ["dist-newstyle"]
 
+clearPreviousData :: Sh.Sh ()
+clearPreviousData = Sh.escaping False $
+  Sh.command_ "rm" ["-rf"] ["*-timings.csv", "*-timings.log"]
+
+cleanPackageDir :: Sh.Sh ()
+cleanPackageDir = clearCabalCache >> clearPreviousData
+
 cdToPackage :: Package -> Sh.Sh ()
 cdToPackage p =
   do
