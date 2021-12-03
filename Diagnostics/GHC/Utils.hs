@@ -193,6 +193,9 @@ jailBreakCabal = void
   $ trySh
   $ Sh.command_ "jailbreak-cabal" ["*.cabal"] []
 
+clearCabalCache :: Sh.Sh ()
+clearCabalCache = Sh.command_ "rm" ["-rf"] ["dist-newstyle"]
+
 cdToPackage :: Package -> Sh.Sh ()
 cdToPackage p =
   do
