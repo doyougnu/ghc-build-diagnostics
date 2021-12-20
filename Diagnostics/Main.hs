@@ -45,7 +45,7 @@ main = do
     Clean          -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache ps  -> U.cacheExistsOrMake >>
                       between "Building cache" "done" (P.buildCache ps)
-    Packages ps ghcPath' -> do Sh.echo $ "Diagnosing: \n" <> (toText ps) <> "\n" <> toText ghcPath'
+    Packages ps ghcPath' -> do Sh.echo $ "Diagnosing: \n" <> toText ps <> "\n" <> toText ghcPath'
                                _    <- U.cacheExistsOrMake
                                root <- Sh.pwd
                                mkGhcPath ghcPath' >>= \case

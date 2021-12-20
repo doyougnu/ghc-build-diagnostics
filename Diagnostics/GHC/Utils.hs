@@ -27,12 +27,12 @@ import           Data.Functor                    ((<&>))
 import           Data.List                       ((\\))
 import           Data.Maybe                      (isNothing)
 import           System.FilePath                 (takeBaseName, takeFileName)
+import           Data.Time.Clock                 (getCurrentTime)
+import Data.Time.Format
 
 import qualified Distribution.PackageDescription as PD
 
-
 import           GHC.Types
-
 
 class    Exists a                 where exists :: a -> Sh.Sh Bool
 instance Exists CompressedPackage where exists = exists    .
@@ -174,7 +174,7 @@ cabalBuild (toText -> lf) extras = void go
               ]
                <> extras <> [ "2>&1" -- to capture symbols sent to stderr
                             , "|"
-                            , "tee"
+                            , "tee"  -- track the cabal build in the log file
                             , lf
                             ]) []
 
@@ -232,48 +232,67 @@ buildTimingsBy = flip cabalBuild
 
 
 buildTimings :: Sh.Sh ()
-buildTimings = mkLogFileBy ghcVersion >>= buildTimingsBy mempty
+buildTimings = mkLogFile >>= buildTimingsBy mempty
 
 
 buildTimingsWithGhc :: GhcPath -> Sh.Sh ()
-buildTimingsWithGhc ghc = mkLogFileBy (ghcVersionWithGhc ghc) >>=
+buildTimingsWithGhc ghc = mkLogFileWithGhc ghc >>=
                           buildTimingsBy ["-w", unGhcPath ghc]
 
 
-mkLogFileBy :: Sh.Sh T.Text -> Sh.Sh LogFile
-mkLogFileBy = fmap (\version -> LogFile $ version <> "-" <> logFile)
+-- | make a file by a function. Mostly just to keep the types straight
+mkFileBy ::
+  Separator a
+  => (T.Text -> a)           -- The constructor of the file type
+  -> T.Text                  -- The constant name for the file type
+  -> Sh.Sh T.Text            -- A way to retrieve the ghc version
+  -> Sh.Sh a
+mkFileBy constr name getGhcVersion =
+  do
+    time    <- retrieveTimeStamp
+    version <- getGhcVersion
+    return . constr $! mconcat [version, sep, time, sep, name]
 
 
+-- | make a log file
 mkLogFile :: Sh.Sh LogFile
-mkLogFile = mkLogFileBy ghcVersion
+mkLogFile = mkFileBy LogFile logFile ghcVersion
+
+
+mkTimingFile :: Sh.Sh TimingsFile
+mkTimingFile = mkFileBy TimingsFile timingFile ghcVersion
+
+
+mkCSVFile :: Sh.Sh CSVFile
+mkCSVFile = mkFileBy CSVFile csvFile ghcVersion
 
 
 mkLogFileWithGhc :: GhcPath -> Sh.Sh LogFile
-mkLogFileWithGhc = mkLogFileBy . ghcVersionWithGhc
+mkLogFileWithGhc = mkFileBy LogFile logFile . ghcVersionWithGhc
 
+
+mkTimingFileWithGhc :: GhcPath -> Sh.Sh TimingsFile
+mkTimingFileWithGhc = mkFileBy TimingsFile timingFile . ghcVersionWithGhc
+
+
+mkCSVFileWithGhc :: GhcPath -> Sh.Sh CSVFile
+mkCSVFileWithGhc = mkFileBy CSVFile csvFile . ghcVersionWithGhc
+
+
+-- | ask the GHC on PATH what its version is
 ghcVersion :: Sh.Sh T.Text
 ghcVersion = T.strip <$> Sh.command "ghc" ["--numeric-version"] []
 
 
+-- | ask the GHC that was passed in what its version is
 ghcVersionWithGhc :: GhcPath -> Sh.Sh T.Text
 ghcVersionWithGhc (T.unpack . unGhcPath -> ghc) =
   T.strip <$> Sh.command ghc ["--numeric-version"] []
 
 
-mkTimingFile :: Sh.Sh TimingsFile
-mkTimingFile = (\version -> TimingsFile $ version <> "-" <> timingFile) <$> ghcVersion
-
-
-mkCSVFile :: Sh.Sh CSVFile
-mkCSVFile = (\version -> CSVFile $ version <> "-" <> csvFile) <$> ghcVersion
-
-
-mkTimingFileWithGhc :: GhcPath -> Sh.Sh TimingsFile
-mkTimingFileWithGhc = fmap (\version -> TimingsFile $ version <> "-" <> timingFile) . ghcVersionWithGhc
-
-
-mkCSVFileWithGhc :: GhcPath -> Sh.Sh CSVFile
-mkCSVFileWithGhc = fmap (\version -> CSVFile $ version <> "-" <> csvFile) . ghcVersionWithGhc
+retrieveTimeStamp :: Sh.Sh T.Text
+retrieveTimeStamp = Sh.liftIO $!
+  T.pack . formatTime defaultTimeLocale "%F-%T" <$> getCurrentTime
 
 
 collectCSVs :: TimingsFile -> CSVFile -> Sh.Sh ()

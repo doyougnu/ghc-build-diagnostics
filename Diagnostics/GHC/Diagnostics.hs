@@ -16,9 +16,6 @@
 module GHC.Diagnostics where
 
 
-
-
-
 import qualified Shelly          as Sh
 
 import           GHC.Types

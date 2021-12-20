@@ -31,6 +31,7 @@ module GHC.Types
   , ToText(..)
   , ToPath(..)
   , Empty(..)
+  , Separator(..)
   , CabalFile(..)
   , MainFile(..)
   , Executable
@@ -62,16 +63,27 @@ newtype GhcPath = GhcPath { unGhcPath :: T.Text }
                 deriving newtype Show
 
 newtype CabalFile = CabalFile { unCabalFile :: T.Text }
-                  deriving stock Show
+                  deriving newtype Show
 
+-- | A text file that is used to log the output of cabal build with timing
+-- flags via tee in @cabalBuild@
 newtype LogFile = LogFile { unLogFile :: T.Text }
-                  deriving newtype Show
+                  deriving newtype (Show, Separator)
 
+-- | A timing file is a csv file that is created by parsing a @LogFile@. A
+-- timing file is per package and exists in a packages subdirectory in the
+-- project cache, while a @CSVFile@ is the aggregation of all timing files from
+-- all packages and the final output of the script. The script initializes a
+-- timing file name in @main@, which is then used to write a timing file per
+-- package in that package's subdirectory in the package cache.
 newtype TimingsFile = TimingsFile { unTimingsFile :: T.Text }
-                  deriving newtype Show
+                  deriving newtype (Show, Separator)
 
+-- | The combination of all timing files from all packages diagnosed in the
+-- package cache. This file is written to the root directory the script was
+-- called from. Constructed via @collectCSVs@
 newtype CSVFile = CSVFile { unCSVFile :: T.Text }
-                  deriving newtype Show
+                  deriving newtype (Show, Separator)
 
 mkGhcPath :: Maybe T.Text -> Sh.Sh (Maybe GhcPath)
 mkGhcPath Nothing    = return Nothing
@@ -99,8 +111,6 @@ mkMainFile = fmap (MainFile . toText) . Sh.canonicalize . toPath
 
 -- | a bunch of packages
 newtype PackageSet = PackageSet { unPackageSet :: [Package] }
-
--- | a bunch of compilers
 
 -- | packages that the user is requesting but are not in the cache
 newtype RebuildSet = RebuildSet { unRebuildSet :: [Package] }
@@ -140,6 +150,9 @@ instance ToPath TimingsFile       where toPath = toPath . toText
 
 class    Empty a          where empty :: a -> Bool
 instance Empty RebuildSet where empty = null . unRebuildSet
+
+class    Separator a      where sep :: a
+instance Separator T.Text where sep = "-"
 
 -- | constant for directory to hold packages
 workingDir :: T.Text
