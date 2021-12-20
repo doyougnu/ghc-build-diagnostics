@@ -44,7 +44,6 @@ in
                                  gmp     # required for sbv
                                  cabal-install
                                  wget
-                                 unstable.haskell-language-server
                                ]
       ++
       (with haskellPackages; [ hlint
@@ -57,6 +56,7 @@ in
                                profiteur
                                conduit
                                jailbreak-cabal
+                               haskell-language-server
                              ]);
     };
   }
