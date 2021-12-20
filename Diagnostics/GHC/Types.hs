@@ -6,14 +6,18 @@
 -- Maintainer: youngjef@oregonstate.edu
 -- Stability : experimental
 --
--- Types
+-- Types for our script, mostly newtypes to avoid Text confusion and a script
+-- monad for convienience
 -----------------------------------------------------------------------------
 
-{-# OPTIONS_GHC -Wall -Werror   #-}
-{-# LANGUAGE DerivingStrategies #-}
-{-# LANGUAGE FlexibleInstances  #-}
-{-# LANGUAGE OverloadedStrings  #-}
+{-# OPTIONS_GHC -Wall -Werror           #-}
+{-# LANGUAGE DerivingStrategies         #-}
+{-# LANGUAGE FlexibleInstances          #-}
+{-# LANGUAGE OverloadedStrings          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE FlexibleContexts           #-}
+{-# LANGUAGE RecordWildCards            #-}
+{-# LANGUAGE ViewPatterns               #-}
 
 module GHC.Types
   ( Package
@@ -34,6 +38,16 @@ module GHC.Types
   , Empty(..)
   , Separator(..)
   , CabalFile(..)
+  , Env
+  , ScriptM
+  , lift
+  , runScriptM
+  , recordLogFile
+  , recordFailedPackage
+  , recordTimeStamp
+  , retrieveLogFiles
+  , retrieveFailures
+  , retrieveTimeStamp
   , mkGhcPath
   , workingDir
   , packageList
@@ -48,8 +62,12 @@ module GHC.Types
 import qualified Data.Text as T
 import qualified Shelly    as Sh
 
+import Shelly.Lifted (MonadSh)
+import Control.Monad.Reader (ReaderT (runReaderT), MonadReader, local, asks)
+
 import Data.Time.Format (formatTime, defaultTimeLocale)
 import Data.Time.Clock (UTCTime)
+import Control.Monad.Trans
 
 ----------------------- Convienience Types over Text ---------------------------
 -- | Type synonyms for more descriptive types
@@ -148,7 +166,6 @@ instance ToPath LogFile           where toPath = toPath . toText
 instance ToPath TimingsFile       where toPath = toPath . toText
 
 
--- |
 class    Empty a          where empty :: a -> Bool
 instance Empty RebuildSet where empty = null . unRebuildSet
 
@@ -190,3 +207,66 @@ cache = workingDir Sh.</> ("cache" :: T.Text)
 
 tarGz :: T.Text
 tarGz = T.pack $ ("tar" :: T.Text) Sh.<.> "gz"
+
+-------------------------- The Script Monad ------------------------------------
+data Env = Env { logFiles       :: [LogFile]    -- ^ Files for which we have logs
+               , failedPackages :: PackageSet   -- ^ Packages that we failed to diagnose
+               , timeStamp      :: !TimeStamp   -- ^ DateTime stamp of when the script started
+               }
+
+addLogFile :: LogFile -> Env -> Env
+addLogFile l Env{logFiles=ls, failedPackages=fs, timeStamp = ts} =
+  Env { logFiles       = l:ls
+      , failedPackages = fs
+      , timeStamp      = ts
+      }
+
+addFailedPackage :: Package -> Env -> Env
+addFailedPackage f Env{logFiles=ls, failedPackages=fs, timeStamp=ts} =
+  Env { logFiles       = ls
+      , failedPackages = PackageSet . (f:) $! unPackageSet fs
+      , timeStamp      = ts
+      }
+
+setTimeStamp :: TimeStamp -> Env -> Env
+setTimeStamp time Env{logFiles=ls, failedPackages=fs} =
+  Env { logFiles       = ls
+      , failedPackages = fs
+      , timeStamp      = time
+      }
+
+-- | our script monad, just a reader of IO in the guise of Shelly
+newtype ScriptMT m a = ScriptM { unScriptM :: ReaderT Env m a }
+  deriving newtype ( Functor, Applicative, Monad
+                   , MonadIO, MonadReader Env, MonadTrans
+                   , MonadSh
+                   )
+
+type ScriptM = ScriptMT Sh.Sh
+
+runScriptM :: MonadIO m => Env -> ScriptM a -> m a
+runScriptM env = Sh.shelly . flip runReaderT env . unScriptM
+
+
+recordLogFile :: MonadReader Env m => LogFile -> m () -> m ()
+recordLogFile = local . addLogFile
+
+
+recordFailedPackage :: MonadReader Env m => Package -> m () -> m ()
+recordFailedPackage = local . addFailedPackage
+
+
+recordTimeStamp :: MonadReader Env m => TimeStamp -> m () -> m ()
+recordTimeStamp = local . setTimeStamp
+
+
+retrieveLogFiles :: MonadReader Env m => m [LogFile]
+retrieveLogFiles = asks logFiles
+
+
+retrieveFailures :: MonadReader Env m => m PackageSet
+retrieveFailures = asks failedPackages
+
+
+retrieveTimeStamp :: MonadReader Env m => m TimeStamp
+retrieveTimeStamp = asks timeStamp

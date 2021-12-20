@@ -28,7 +28,6 @@ import           Data.List                       ((\\))
 import           Data.Maybe                      (isNothing)
 import           System.FilePath                 (takeBaseName, takeFileName)
 import           Data.Time.Clock                 (getCurrentTime)
-import Data.Time.Format
 
 import qualified Distribution.PackageDescription as PD
 
@@ -244,12 +243,12 @@ buildTimingsWithGhc ghc = mkLogFileWithGhc ghc >>=
 mkFileBy ::
   Separator a
   => (T.Text -> a)           -- The constructor of the file type
+  -> TimeStamp               -- TimeStamp for the file
   -> T.Text                  -- The constant name for the file type
   -> Sh.Sh T.Text            -- A way to retrieve the ghc version
   -> Sh.Sh a
-mkFileBy constr name getGhcVersion =
+mkFileBy constr (toText -> time) name getGhcVersion =
   do
-    time    <- retrieveTimeStamp
     version <- getGhcVersion
     return . constr $! mconcat [version, sep, time, sep, name]
 
@@ -290,9 +289,8 @@ ghcVersionWithGhc (T.unpack . unGhcPath -> ghc) =
   T.strip <$> Sh.command ghc ["--numeric-version"] []
 
 
-retrieveTimeStamp :: Sh.Sh T.Text
-retrieveTimeStamp = Sh.liftIO $!
-  T.pack . formatTime defaultTimeLocale "%F-%T" <$> getCurrentTime
+retrieveTimeStamp :: Sh.Sh TimeStamp
+retrieveTimeStamp = Sh.liftIO $! TimeStamp <$> getCurrentTime
 
 
 collectCSVs :: TimingsFile -> CSVFile -> Sh.Sh ()

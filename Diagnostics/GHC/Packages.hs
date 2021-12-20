@@ -24,7 +24,7 @@ module GHC.Packages
 
 
 import qualified Data.Text       as T
-import qualified Shelly          as Sh
+import qualified Shelly.Lifted   as Sh
 
 import           Control.Arrow   (second)
 
@@ -75,5 +75,5 @@ unzipPackage package =
      U.expand package cache
 
 
-findPackageProject :: Package -> Sh.Sh ()
+findPackageProject :: Package -> ScriptM ()
 findPackageProject p = Sh.cd $ workingDir Sh.</> tarCache Sh.</> p

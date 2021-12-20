@@ -1,6 +1,6 @@
 { mkDerivation, base, optparse-applicative, shelly, stdenv,
   text, filepath, extra, ghc, ghc-paths, wget, gnutar, Cabal,
-  directory, cassava, megaparsec, bytestring, time
+  directory, cassava, megaparsec, bytestring, time, mtl
 }:
 mkDerivation {
   pname = "ghc-build-diagnostics";
@@ -11,7 +11,7 @@ mkDerivation {
   buildDepends = [ wget gnutar ];
   executableHaskellDepends = [
     base optparse-applicative shelly text extra ghc ghc-paths filepath
-    Cabal directory cassava megaparsec time
+    Cabal directory cassava megaparsec time mtl
   ];
   license = "unknown";
   hydraPlatforms = stdenv.lib.platforms.none;

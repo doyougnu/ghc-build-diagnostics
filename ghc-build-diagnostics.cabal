@@ -35,6 +35,7 @@ executable ghc-build-diagnostics
                      , ghc
                      , ghc-paths
                      , megaparsec
+                     , mtl
                      , optparse-applicative
                      , shelly
                      , text
