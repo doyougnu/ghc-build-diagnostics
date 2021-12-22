@@ -18,7 +18,7 @@ module Main where
 
 import qualified Data.Text           as T
 import qualified Options.Applicative as O
-import qualified Shelly              as Sh
+import qualified Shelly.Lifted       as Sh
 
 import           Control.Applicative (some)
 import           Control.Monad       (void)
@@ -41,7 +41,8 @@ main = do
   let between before after go = do Sh.echo before
                                    void go
                                    Sh.echo after
-  Sh.shelly $ case mode of
+  env <- initEnv
+  runScript env $ case mode of
     Clean          -> between "Cleaning..." "done" (Sh.rm_rf (T.unpack workingDir))
     BuildCache ps  -> U.cacheExistsOrMake >>
                       between "Building cache" "done" (P.buildCache ps)

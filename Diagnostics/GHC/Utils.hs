@@ -19,21 +19,26 @@
 module GHC.Utils where
 
 import qualified Data.Text                       as T
-import qualified Shelly                          as Sh
+import qualified Shelly.Lifted                   as Sh
+import Shelly.Lifted()
 
-import           Control.Exception.Base          (SomeException)
 import           Control.Monad                   (void)
 import           Data.Functor                    ((<&>))
 import           Data.List                       ((\\))
 import           Data.Maybe                      (isNothing)
 import           System.FilePath                 (takeBaseName, takeFileName)
-import           Data.Time.Clock                 (getCurrentTime)
+import           Control.Exception.Lifted (try)
+import           Control.Exception        (Exception())
 
 import qualified Distribution.PackageDescription as PD
 
 import           GHC.Types
 
-class    Exists a                 where exists :: a -> Sh.Sh Bool
+
+
+
+
+class    Exists a                 where exists :: a -> ScriptM Bool
 instance Exists CompressedPackage where exists = exists    .
                                                  T.unpack  .
                                                  unCompressedPackage
@@ -52,7 +57,7 @@ toUrl (p,v) = hackage <> T.pack (p Sh.</> p)
 
 
 -- | decompress a package to a package directory
-expand :: CompressedPackage -> ProjectCache -> Sh.Sh ()
+expand :: CompressedPackage -> ProjectCache -> ScriptM ()
 expand (unCompressedPackage -> package) (T.pack -> target) =
   do Sh.canonicalize (toPath package) >>= Sh.echo . ("Expanding: " <>) . T.pack
      Sh.canonicalize (toPath target)  >>= Sh.echo . ("To: "        <>) . T.pack
@@ -60,7 +65,7 @@ expand (unCompressedPackage -> package) (T.pack -> target) =
      Sh.echo "Done"
 
 
-cat :: T.Text -> Sh.Sh T.Text
+cat :: T.Text -> ScriptM T.Text
 cat = Sh.run "cat" . pure
 
 
@@ -81,26 +86,26 @@ compressedToPackageDir = toPackageDirectory         .
                          unCompressedPackage
 
 
-wget :: [(Package, Version)] -> T.Text -> Sh.Sh ()
+wget :: [(Package, Version)] -> T.Text -> ScriptM ()
 wget ps target = Sh.setStdin (T.unlines . fmap toUrl $ ps) >>
                  Sh.run_ "xargs" ["wget", "--directory-prefix=" <> target]
 
 
-resetTarCache :: Sh.Sh ()
+resetTarCache :: ScriptM ()
 resetTarCache = Sh.rm_rf (workingDir Sh.</> tarCache)
                 >> Sh.mkdir_p (workingDir Sh.</> tarCache)
 
 
-createWorkingDir :: Sh.Sh ()
+createWorkingDir :: ScriptM ()
 createWorkingDir = Sh.mkdir_p (T.unpack workingDir)
 
 
-createCache :: Sh.Sh ()
+createCache :: ScriptM ()
 createCache = Sh.mkdir_p cache
 
 
 -- | check that the cache exists, if not make it
-cacheExistsOrMake :: Sh.Sh ()
+cacheExistsOrMake :: ScriptM ()
 cacheExistsOrMake = createWorkingDir >> createCache
 
 
@@ -108,19 +113,19 @@ cacheExistsOrMake = createWorkingDir >> createCache
 findIn :: T.Text   -- ^ Where to look
        -> T.Text   -- ^ thing to find
        -> [T.Text] -- ^ Extra commands
-       -> Sh.Sh T.Text
+       -> ScriptM T.Text
 findIn there thing = go
   where go = Sh.command "find" [there, "-name", thing]
 
 
-findInProject :: PackageDirectory -> T.Text -> Sh.Sh (Maybe T.Text)
+findInProject :: PackageDirectory -> T.Text -> ScriptM (Maybe T.Text)
 findInProject (unPackageDirectory -> path) toFind = check <$> go
   where go = Sh.command "find" [path, "-name", toFind] []
         check b | b /= mempty = Just b
                 | otherwise   = Nothing
 
 
-findProject :: Package -> Sh.Sh (Maybe PackageDirectory)
+findProject :: Package -> ScriptM (Maybe PackageDirectory)
 findProject p = go <&> \case []    -> Nothing
                              (x:_) -> Just $ PackageDirectory x
   where go = T.lines <$>
@@ -144,26 +149,26 @@ getDependencies' :: PD.GenericPackageDescription -> [FilePath]
 getDependencies' = fmap (PD.modulePath . PD.condTreeData . snd) . PD.condExecutables
 
 
-cabalGetPackages :: RebuildSet -> Sh.Sh ()
+cabalGetPackages :: RebuildSet -> ScriptM ()
 cabalGetPackages = mapM_ cabalGet . unRebuildSet
 
 
-cabalGet :: Package -> Sh.Sh ()
-cabalGet p = void $! trySh go
+cabalGet :: Package -> ScriptM ()
+cabalGet p = go >>= \case
+  Left RedundantDir -> Sh.echo $
+    "Package: " <> p <> "already in cache!, skipping the download"
+  Right unit        -> return unit
   -- cabal will error if the directory already
   -- exists we catch this error here to
   -- continue processing the directory and auto
   -- succeed if the directory exists
   where
-    go :: Sh.Sh ()
-    go = Sh.command_ "cabal" ["get"] [p]
+    go :: Exception e => ScriptM (Either e ())
+    go = try $ Sh.command_ "cabal" ["get"] [p]
 
-trySh :: Sh.Sh a -> Sh.Sh (Either SomeException a)
-trySh a = Sh.catch_sh (Right <$> a) (return . Left)
-
-cabalBuild :: LogFile -> [T.Text] -> Sh.Sh ()
+cabalBuild :: LogFile -> [T.Text] -> ScriptM ()
 cabalBuild (toText -> lf) extras = void go
-  where go = Sh.escaping False $ trySh $
+  where go = Sh.escaping False $ 
              Sh.command_ "cabal"
              ([ "new-build"
               , "--force-reinstalls"
@@ -178,7 +183,7 @@ cabalBuild (toText -> lf) extras = void go
                             ]) []
 
 
-cachedPackages :: Sh.Sh PackageSet
+cachedPackages :: ScriptM PackageSet
 cachedPackages = PackageSet . fmap packageName <$> Sh.lsT cache
   where
     packageName :: Package -> Package
@@ -186,23 +191,22 @@ cachedPackages = PackageSet . fmap packageName <$> Sh.lsT cache
     dash        = "-" :: T.Text
 
 -- | remove versioning from all cabal files in current directory
-jailBreakCabal :: Sh.Sh ()
+jailBreakCabal :: ScriptM ()
 jailBreakCabal = void
   $ Sh.escaping False
-  $ trySh
   $ Sh.command_ "jailbreak-cabal" ["*.cabal"] []
 
-clearCabalCache :: Sh.Sh ()
+clearCabalCache :: ScriptM ()
 clearCabalCache = Sh.command_ "rm" ["-rf"] ["dist-newstyle"]
 
-clearPreviousData :: Sh.Sh ()
+clearPreviousData :: ScriptM ()
 clearPreviousData = Sh.escaping False $
   Sh.command_ "rm" ["-rf"] ["*-timings.csv", "*-timings.log"]
 
-cleanPackageDir :: Sh.Sh ()
+cleanPackageDir :: ScriptM ()
 cleanPackageDir = clearCabalCache >> clearPreviousData
 
-cdToPackage :: Package -> Sh.Sh ()
+cdToPackage :: Package -> ScriptM ()
 cdToPackage p =
   do
     findProject p >>= \case
@@ -218,7 +222,7 @@ cdToPackage p =
       Just cached -> Sh.cd $ toPath cached
 
 
-validatePackages :: PackageSet -> Sh.Sh RebuildSet
+validatePackages :: PackageSet -> ScriptM RebuildSet
 validatePackages (unPackageSet -> ps) =
   do cachedPs <- unPackageSet <$> cachedPackages
      return . RebuildSet $ ps \\ cachedPs
@@ -226,15 +230,15 @@ validatePackages (unPackageSet -> ps) =
 
 buildTimingsBy :: [T.Text] -- ^ Extra arguments
                -> LogFile  -- ^ the log file name
-               -> Sh.Sh ()
+               -> ScriptM ()
 buildTimingsBy = flip cabalBuild
 
 
-buildTimings :: Sh.Sh ()
+buildTimings :: ScriptM ()
 buildTimings = mkLogFile >>= buildTimingsBy mempty
 
 
-buildTimingsWithGhc :: GhcPath -> Sh.Sh ()
+buildTimingsWithGhc :: GhcPath -> ScriptM ()
 buildTimingsWithGhc ghc = mkLogFileWithGhc ghc >>=
                           buildTimingsBy ["-w", unGhcPath ghc]
 
@@ -243,57 +247,56 @@ buildTimingsWithGhc ghc = mkLogFileWithGhc ghc >>=
 mkFileBy ::
   Separator a
   => (T.Text -> a)           -- The constructor of the file type
-  -> TimeStamp               -- TimeStamp for the file
   -> T.Text                  -- The constant name for the file type
-  -> Sh.Sh T.Text            -- A way to retrieve the ghc version
-  -> Sh.Sh a
-mkFileBy constr (toText -> time) name getGhcVersion =
+  -> ScriptM T.Text          -- A way to retrieve the ghc version
+  -> TimeStamp               -- TimeStamp for the file
+  -> ScriptM a
+mkFileBy constr name getGhcVersion (toText -> time) =
   do
     version <- getGhcVersion
     return . constr $! mconcat [version, sep, time, sep, name]
 
 
 -- | make a log file
-mkLogFile :: Sh.Sh LogFile
-mkLogFile = mkFileBy LogFile logFile ghcVersion
+mkLogFile :: ScriptM LogFile
+mkLogFile = retrieveTimeStamp >>= mkFileBy LogFile logFile ghcVersion
 
 
-mkTimingFile :: Sh.Sh TimingsFile
-mkTimingFile = mkFileBy TimingsFile timingFile ghcVersion
+mkTimingFile :: ScriptM TimingsFile
+mkTimingFile = retrieveTimeStamp >>= mkFileBy TimingsFile timingFile ghcVersion
 
 
-mkCSVFile :: Sh.Sh CSVFile
-mkCSVFile = mkFileBy CSVFile csvFile ghcVersion
+mkCSVFile :: ScriptM CSVFile
+mkCSVFile = retrieveTimeStamp >>= mkFileBy CSVFile csvFile ghcVersion
 
 
-mkLogFileWithGhc :: GhcPath -> Sh.Sh LogFile
-mkLogFileWithGhc = mkFileBy LogFile logFile . ghcVersionWithGhc
+mkLogFileWithGhc :: GhcPath -> ScriptM LogFile
+mkLogFileWithGhc p = retrieveTimeStamp >>=
+                     mkFileBy LogFile logFile (ghcVersionWithGhc p)
 
 
-mkTimingFileWithGhc :: GhcPath -> Sh.Sh TimingsFile
-mkTimingFileWithGhc = mkFileBy TimingsFile timingFile . ghcVersionWithGhc
+mkTimingFileWithGhc :: GhcPath -> ScriptM TimingsFile
+mkTimingFileWithGhc p = retrieveTimeStamp >>=
+                        mkFileBy TimingsFile timingFile (ghcVersionWithGhc p)
 
 
-mkCSVFileWithGhc :: GhcPath -> Sh.Sh CSVFile
-mkCSVFileWithGhc = mkFileBy CSVFile csvFile . ghcVersionWithGhc
+mkCSVFileWithGhc :: GhcPath -> ScriptM CSVFile
+mkCSVFileWithGhc p = retrieveTimeStamp >>=
+                     mkFileBy CSVFile csvFile (ghcVersionWithGhc p)
 
 
 -- | ask the GHC on PATH what its version is
-ghcVersion :: Sh.Sh T.Text
+ghcVersion :: ScriptM  T.Text
 ghcVersion = T.strip <$> Sh.command "ghc" ["--numeric-version"] []
 
 
 -- | ask the GHC that was passed in what its version is
-ghcVersionWithGhc :: GhcPath -> Sh.Sh T.Text
+ghcVersionWithGhc :: GhcPath -> ScriptM T.Text
 ghcVersionWithGhc (T.unpack . unGhcPath -> ghc) =
   T.strip <$> Sh.command ghc ["--numeric-version"] []
 
 
-retrieveTimeStamp :: Sh.Sh TimeStamp
-retrieveTimeStamp = Sh.liftIO $! TimeStamp <$> getCurrentTime
-
-
-collectCSVs :: TimingsFile -> CSVFile -> Sh.Sh ()
+collectCSVs :: TimingsFile -> CSVFile -> ScriptM ()
 collectCSVs (toText -> tf) (toText -> csv) =
   Sh.escaping False $
   Sh.command_ "find" [toText cache

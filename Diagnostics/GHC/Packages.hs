@@ -34,14 +34,14 @@ import qualified GHC.Utils       as U
 
 
 -- | get a list of packages from cabal
-retrievePackageList :: T.Text -> Sh.Sh ()
+retrievePackageList :: T.Text -> ScriptM ()
 retrievePackageList (T.unpack -> targetFile) =
   do ps <- Sh.silently $ T.lines <$> Sh.run "cabal" ["list", "--simple"]
      Sh.writefile targetFile (T.unlines ps)
 
 
 -- | Download all packages in the package list from hackage by some predicate
-retrieveAllPackagesBy :: ([(Package, Version)] -> [(Package, Version)]) -> Sh.Sh ()
+retrieveAllPackagesBy :: ([(Package, Version)] -> [(Package, Version)]) -> ScriptM ()
 retrieveAllPackagesBy by =
   do Sh.whenM (not <$> U.exists packageList)
        (Sh.echo "No package list in cache, rebuilding"
@@ -54,7 +54,7 @@ retrieveAllPackagesBy by =
 
 
 -- | Download all the most recent versions of every package from hackage
-buildCache :: PackageSet -> Sh.Sh ()
+buildCache :: PackageSet -> ScriptM ()
 buildCache ps =
   do Sh.echo "Checking cache"
      Sh.mkdir_p cache
@@ -67,7 +67,7 @@ buildCache ps =
 
 
 -- | uncompress a package downloaded from hackage
-unzipPackage :: CompressedPackage -> Sh.Sh ()
+unzipPackage :: CompressedPackage -> ScriptM ()
 unzipPackage package =
   do Sh.whenM (not <$> U.exists cache) $
        Sh.echo "Initializing Project Cache" >>

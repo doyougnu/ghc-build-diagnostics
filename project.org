@@ -46,10 +46,10 @@
 ** DONE Read in hackage package
    CLOSED: [2021-06-22 Tue 19:40]
 
-** TODO Call compiler packages on package
+** DONE Call compiler packages on package
 
-** TODO Project produces useful output data
+** DONE Project produces useful output data
 
-** TODO Project produces alloc/entries output data
+** DONE Project produces alloc/entries output data
 
-** TODO Project runs autonomously
+** DONE Project runs autonomously

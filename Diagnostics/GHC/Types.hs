@@ -18,6 +18,11 @@
 {-# LANGUAGE FlexibleContexts           #-}
 {-# LANGUAGE RecordWildCards            #-}
 {-# LANGUAGE ViewPatterns               #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeFamilies #-}
+{-# LANGUAGE UndecidableInstances #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# OPTIONS_GHC -Wno-unused-imports #-}
 
 module GHC.Types
   ( Package
@@ -38,10 +43,12 @@ module GHC.Types
   , Empty(..)
   , Separator(..)
   , CabalFile(..)
+  , Sh()
   , Env
   , ScriptM
-  , lift
+  , Err(..)
   , runScriptM
+  , lift
   , recordLogFile
   , recordFailedPackage
   , recordTimeStamp
@@ -57,17 +64,20 @@ module GHC.Types
   , logFile
   , timingFile
   , csvFile
+  , runScript
+  , initEnv
   ) where
 
 import qualified Data.Text as T
 import qualified Shelly    as Sh
 
-import Shelly.Lifted (MonadSh)
+import Shelly.Lifted (Sh())
 import Control.Monad.Reader (ReaderT (runReaderT), MonadReader, local, asks)
 
 import Data.Time.Format (formatTime, defaultTimeLocale)
-import Data.Time.Clock (UTCTime)
+import           Data.Time.Clock
 import Control.Monad.Trans
+import Control.Exception
 
 ----------------------- Convienience Types over Text ---------------------------
 -- | Type synonyms for more descriptive types
@@ -114,9 +124,9 @@ newtype CSVFile = CSVFile { unCSVFile :: T.Text }
                   deriving newtype (Show, Separator)
 
 
-mkGhcPath :: Maybe T.Text -> Sh.Sh (Maybe GhcPath)
+mkGhcPath :: Maybe T.Text -> ScriptM (Maybe GhcPath)
 mkGhcPath Nothing    = return Nothing
-mkGhcPath (Just ghc) = do version <- T.strip <$> Sh.command (toPath ghc) ["--numeric-version"] []
+mkGhcPath (Just ghc) = do version <- T.strip <$> lift (Sh.command (toPath ghc) ["--numeric-version"] [])
                           return $
                             if version == mempty
                             then Nothing
@@ -125,6 +135,7 @@ mkGhcPath (Just ghc) = do version <- T.strip <$> Sh.command (toPath ghc) ["--num
 
 -- | a bunch of packages
 newtype PackageSet = PackageSet { unPackageSet :: [Package] }
+                   deriving newtype (Semigroup, Monoid)
 
 
 -- | packages that the user is requesting but are not in the cache
@@ -214,12 +225,23 @@ data Env = Env { logFiles       :: [LogFile]    -- ^ Files for which we have log
                , timeStamp      :: !TimeStamp   -- ^ DateTime stamp of when the script started
                }
 
+initEnv :: IO Env
+initEnv = do t <- Sh.liftIO $! TimeStamp <$> getCurrentTime
+             return $!
+               Env { logFiles       = mempty
+                   , failedPackages = mempty
+                   , timeStamp      = t
+                   }
+
+
+
 addLogFile :: LogFile -> Env -> Env
 addLogFile l Env{logFiles=ls, failedPackages=fs, timeStamp = ts} =
   Env { logFiles       = l:ls
       , failedPackages = fs
       , timeStamp      = ts
       }
+
 
 addFailedPackage :: Package -> Env -> Env
 addFailedPackage f Env{logFiles=ls, failedPackages=fs, timeStamp=ts} =
@@ -228,6 +250,7 @@ addFailedPackage f Env{logFiles=ls, failedPackages=fs, timeStamp=ts} =
       , timeStamp      = ts
       }
 
+
 setTimeStamp :: TimeStamp -> Env -> Env
 setTimeStamp time Env{logFiles=ls, failedPackages=fs} =
   Env { logFiles       = ls
@@ -235,17 +258,16 @@ setTimeStamp time Env{logFiles=ls, failedPackages=fs} =
       , timeStamp      = time
       }
 
+
 -- | our script monad, just a reader of IO in the guise of Shelly
-newtype ScriptMT m a = ScriptM { unScriptM :: ReaderT Env m a }
-  deriving newtype ( Functor, Applicative, Monad
-                   , MonadIO, MonadReader Env, MonadTrans
-                   , MonadSh
-                   )
+type ScriptM = ReaderT Env Sh.Sh
 
-type ScriptM = ScriptMT Sh.Sh
 
-runScriptM :: MonadIO m => Env -> ScriptM a -> m a
-runScriptM env = Sh.shelly . flip runReaderT env . unScriptM
+runScriptM :: (MonadIO m) => r -> ScriptM a -> m a
+runScriptM = (Sh.shelly .) . runScriptM
+
+runScript :: r -> ScriptM a -> IO a
+runScript = runScriptM
 
 
 recordLogFile :: MonadReader Env m => LogFile -> m () -> m ()
@@ -270,3 +292,8 @@ retrieveFailures = asks failedPackages
 
 retrieveTimeStamp :: MonadReader Env m => m TimeStamp
 retrieveTimeStamp = asks timeStamp
+
+------------------------------ Exceptions ---------------------------------------
+data Err = RedundantDir deriving Show
+
+instance Exception Err

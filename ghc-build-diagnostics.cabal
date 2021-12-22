@@ -34,10 +34,13 @@ executable ghc-build-diagnostics
                      , filepath
                      , ghc
                      , ghc-paths
+                     , lifted-base
+                     , monad-control
                      , megaparsec
                      , mtl
                      , optparse-applicative
                      , shelly
                      , text
                      , time
+                     , transformers-base
   default-language:    Haskell2010

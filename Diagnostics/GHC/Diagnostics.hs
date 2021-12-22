@@ -24,7 +24,7 @@ import qualified GHC.Process     as P
 
 
 
-diagnosePackage :: Package -> LogFile -> TimingsFile -> Sh.Sh ()
+diagnosePackage :: Package -> LogFile -> TimingsFile -> ScriptM ()
 diagnosePackage p lf tf = do U.cdToPackage p
                              U.jailBreakCabal
                              U.cleanPackageDir
@@ -32,7 +32,7 @@ diagnosePackage p lf tf = do U.cdToPackage p
                              P.timingsToCsv p lf tf
 
 
-diagnosePackageWithGhc :: Package -> LogFile -> TimingsFile -> GhcPath -> Sh.Sh ()
+diagnosePackageWithGhc :: Package -> LogFile -> TimingsFile -> GhcPath -> ScriptM ()
 diagnosePackageWithGhc p lf tf ghc = do U.cdToPackage p
                                         U.jailBreakCabal
                                         U.cleanPackageDir
@@ -40,13 +40,13 @@ diagnosePackageWithGhc p lf tf ghc = do U.cdToPackage p
                                         P.timingsToCsv p lf tf
 
 
-diagnosePackages :: PackageSet -> LogFile -> TimingsFile -> Sh.Sh ()
+diagnosePackages :: PackageSet -> LogFile -> TimingsFile -> ScriptM ()
 diagnosePackages (unPackageSet -> ps) lf tf =
-  do rootDir <- Sh.pwd
-     mapM_ (\p -> Sh.cd rootDir >> diagnosePackage p lf tf) ps
+  do rootDir <- lift Sh.pwd
+     mapM_ (\p -> lift (Sh.cd rootDir) >> diagnosePackage p lf tf) ps
 
 
-diagnosePackagesWithGhc :: PackageSet -> LogFile -> TimingsFile -> GhcPath -> Sh.Sh ()
+diagnosePackagesWithGhc :: PackageSet -> LogFile -> TimingsFile -> GhcPath -> ScriptM ()
 diagnosePackagesWithGhc (unPackageSet -> ps) lf tf ghc =
-  do rootDir <- Sh.pwd
-     mapM_ (\p -> Sh.cd rootDir >> diagnosePackageWithGhc p lf tf ghc) ps
+  do rootDir <- lift Sh.pwd
+     mapM_ (\p -> lift (Sh.cd rootDir) >> diagnosePackageWithGhc p lf tf ghc) ps

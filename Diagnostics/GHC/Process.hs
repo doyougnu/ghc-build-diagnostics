@@ -39,12 +39,12 @@ import qualified GHC.Utils                  as U
 
 type Parser = Parsec Void T.Text
 
-timingsToCsv :: (ToPath in_, ToPath out_) => Package -> in_ -> out_ -> Sh.Sh ()
+timingsToCsv :: (ToPath in_, ToPath out_) => Package -> in_ -> out_ -> ScriptM ()
 timingsToCsv p (toPath -> in_) (toPath -> out_) =
-  do contents <- Sh.readfile in_
+  do contents <- lift $ Sh.readfile in_
      let ls   = T.lines contents
          rows = rights $ fmap (parse (row p) mempty) ls
-     Sh.writefile out_ (TE.decodeUtf8 . toStrict $ CSV.encodeDefaultOrderedByName rows)
+     lift$ Sh.writefile out_ (TE.decodeUtf8 . toStrict $ CSV.encodeDefaultOrderedByName rows)
 
 
 sc :: Parser ()
